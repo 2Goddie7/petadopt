@@ -1,9 +1,10 @@
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
-import '../../domain/repositories/map_repository.dart';
+import '../repositories/map_repository.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
+/// Calcula la distancia entre dos puntos geográficos
 class CalculateDistance extends UseCaseWithParams<double, CalculateDistanceParams> {
   final MapRepository repository;
 

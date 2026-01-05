@@ -1,4 +1,4 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:google_generative_ai/google_generative_ai.dart' as gemini;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message_model.dart';
 import '../../../../core/error/exceptions.dart';
@@ -14,10 +14,10 @@ abstract class ChatRemoteDataSource {
 
 class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   final SupabaseClient supabase;
-  late final GenerativeModel geminiModel;
+  late final gemini.GenerativeModel geminiModel;
 
   ChatRemoteDataSourceImpl({required this.supabase}) {
-    geminiModel = GenerativeModel(
+    geminiModel = gemini.GenerativeModel(
       model: 'gemini-pro',
       apiKey: ApiConstants.geminiApiKey,
     );
@@ -35,14 +35,14 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       
       // Crear chat con contexto
       final chat = geminiModel.startChat(
-        history: history.map((msg) => Content(
+        history: history.map((msg) => gemini.Content(
           msg.role == ChatRole.user ? 'user' : 'model',
-          [TextPart(msg.message)],
+          [gemini.TextPart(msg.message)],
         )).toList(),
       );
 
       // Enviar mensaje a Gemini
-      final response = await chat.sendMessage(Content.text(message));
+      final response = await chat.sendMessage(gemini.Content.text(message));
       
       if (response.text == null || response.text!.isEmpty) {
         throw const ServerException('No se recibió respuesta de la IA');

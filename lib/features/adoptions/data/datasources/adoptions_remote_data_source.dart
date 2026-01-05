@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/adoption_request_model.dart';
 import '../../../../core/error/exceptions.dart';
+import '../../domain/entities/adoption_request.dart';
 
 /// Contrato del Adoptions Remote Data Source
 abstract class AdoptionsRemoteDataSource {

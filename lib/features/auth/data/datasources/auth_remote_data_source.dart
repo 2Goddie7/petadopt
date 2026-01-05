@@ -139,7 +139,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
-  @override
+@override
 Future<UserModel> signInWithGoogle() async {
   try {
     final started = await supabase.auth.signInWithOAuth(
@@ -151,38 +151,28 @@ Future<UserModel> signInWithGoogle() async {
       throw const ServerException('No se pudo iniciar Google OAuth');
     }
 
-    // Esperar a que Supabase establezca la sesión
-    await supabase.auth.getSession();
+    // Esperar a que el SDK establezca la sesión
+    for (int i = 0; i < 10; i++) {
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        // Intentar obtener perfil creado por trigger
+        final profile = await supabase
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .maybeSingle();
 
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      throw const UnauthorizedException('Usuario no autenticado');
-    }
-
-    // Intentar obtener el perfil (reintentos cortos)
-    Map<String, dynamic>? profile;
-    for (int i = 0; i < 5; i++) {
-      final res = await supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (res != null) {
-        profile = res;
-        break;
+        if (profile != null) {
+          return UserModel.fromJson(profile);
+        }
       }
 
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    if (profile == null) {
-      throw const ServerException(
-        'Perfil no creado aún. Intenta nuevamente.',
-      );
-    }
-
-    return UserModel.fromJson(profile);
+    throw const ServerException(
+      'No se pudo obtener el perfil del usuario',
+    );
   } on AuthException catch (e) {
     throw ServerException(e.message, e.statusCode);
   } on PostgrestException catch (e) {
@@ -192,6 +182,7 @@ Future<UserModel> signInWithGoogle() async {
   }
 }
 
+   
 //CERRAR SESION 
   @override
   Future<void> signOut() async {

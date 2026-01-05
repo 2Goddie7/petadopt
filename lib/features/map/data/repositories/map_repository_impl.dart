@@ -29,6 +29,7 @@ class MapRepositoryImpl implements MapRepository {
     }
   }
 
+
   @override
   Future<Either<Failure, Shelter>> getShelterById(String shelterId) async {
     try {

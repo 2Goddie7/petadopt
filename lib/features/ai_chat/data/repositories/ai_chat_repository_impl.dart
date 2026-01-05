@@ -6,7 +6,7 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/error/exceptions.dart';
 
 class AiChatRepositoryImpl implements AiChatRepository {
-  final GeminiRemoteDataSource remoteDataSource;
+  final ChatRemoteDataSource remoteDataSource;
 
   AiChatRepositoryImpl({required this.remoteDataSource});
 
