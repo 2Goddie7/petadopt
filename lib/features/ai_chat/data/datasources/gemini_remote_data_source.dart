@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message_model.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../domain/entities/ai_chat_message.dart';
 
 abstract class ChatRemoteDataSource {
   Future<ChatMessageModel> sendMessage(String userId, String message);

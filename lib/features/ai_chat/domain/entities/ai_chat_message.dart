@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// Entidad de Mensaje de Chat en el dominio
-/// Representa un mensaje en la conversación con la IA (Gemini)
+/// Entidad de Mensaje de Chat
 class ChatMessage extends Equatable {
   final String id;
   final String userId;
@@ -17,7 +16,7 @@ class ChatMessage extends Equatable {
     required this.createdAt,
   });
 
-  /// Crea una copia del mensaje con campos modificados
+  /// Crea una copia con campos modificados
   ChatMessage copyWith({
     String? id,
     String? userId,
@@ -49,22 +48,20 @@ class ChatMessage extends Equatable {
     final difference = now.difference(createdAt);
 
     if (difference.inSeconds < 60) {
-      return 'Ahora';
+      return 'Ahora mismo';
     } else if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes;
       return 'Hace ${minutes}m';
     } else if (difference.inHours < 24) {
       final hours = difference.inHours;
       return 'Hace ${hours}h';
-    } else if (difference.inDays < 7) {
+    } else {
       final days = difference.inDays;
       return 'Hace ${days}d';
-    } else {
-      return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
     }
   }
 
-  /// Obtiene la hora del mensaje en formato legible
+  /// Formatea la hora del mensaje
   String get timeDisplay {
     final hour = createdAt.hour.toString().padLeft(2, '0');
     final minute = createdAt.minute.toString().padLeft(2, '0');
@@ -74,28 +71,26 @@ class ChatMessage extends Equatable {
   /// Verifica si el mensaje es reciente (menos de 1 minuto)
   bool get isRecent {
     final now = DateTime.now();
-    return now.difference(createdAt).inMinutes < 1;
+    final difference = now.difference(createdAt);
+    return difference.inSeconds < 60;
   }
 
   @override
-  List<Object?> get props => [
-        id,
-        userId,
-        role,
-        message,
-        createdAt,
-      ];
+  List<Object> get props => [id, userId, role, message, createdAt];
 
   @override
-  bool get stringify => true;
+  String toString() {
+    return 'ChatMessage(id: $id, role: $role, message: ${message.substring(0, message.length > 50 ? 50 : message.length)}...)';
+  }
 }
 
-/// Rol del mensaje en el chat
+/// Enum del rol del mensaje
 enum ChatRole {
   user,
   assistant,
   system;
 
+  /// Convierte a String para JSON
   String toJson() {
     switch (this) {
       case ChatRole.user:
@@ -107,31 +102,17 @@ enum ChatRole {
     }
   }
 
-  static ChatRole fromJson(String value) {
-    switch (value.toLowerCase()) {
+  /// Crea desde String de JSON
+  static ChatRole fromJson(String json) {
+    switch (json.toLowerCase()) {
       case 'user':
-      case 'usuario':
         return ChatRole.user;
       case 'assistant':
-      case 'asistente':
-      case 'ai':
         return ChatRole.assistant;
       case 'system':
-      case 'sistema':
         return ChatRole.system;
       default:
-        throw ArgumentError('Invalid chat role: $value');
-    }
-  }
-
-  String get displayName {
-    switch (this) {
-      case ChatRole.user:
-        return 'Usuario';
-      case ChatRole.assistant:
-        return 'Asistente';
-      case ChatRole.system:
-        return 'Sistema';
+        throw ArgumentError('Invalid ChatRole: $json');
     }
   }
 }
