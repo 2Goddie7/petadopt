@@ -181,6 +181,11 @@ class InvalidFormatFailure extends Failure {
       : super(message, code);
 }
 
+/// Failure de validación (campos/errores devueltos por la API)
+class ValidationFailure extends Failure {
+  const ValidationFailure([String message = 'Datos inválidos', String? code]) : super(message, code);
+}
+
 // ============================================
 // FAILURES DE LÓGICA DE NEGOCIO
 // ============================================

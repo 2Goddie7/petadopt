@@ -178,6 +178,11 @@ class InvalidFormatException extends AppException {
       : super(message, code);
 }
 
+/// Excepción de validación (por ejemplo, validación de campos del formulario o errores devueltos por API)
+class ValidationException extends AppException {
+  const ValidationException([String message = 'Datos inválidos', String? code]) : super(message, code);
+}
+
 // ============================================
 // EXCEPCIONES DE LÓGICA DE NEGOCIO
 // ============================================

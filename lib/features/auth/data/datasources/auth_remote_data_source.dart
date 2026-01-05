@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../../../../core/error/exceptions.dart';
@@ -272,9 +273,11 @@ Future<UserModel> signInWithGoogle() async {
       final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final path = '$userId/$fileName';
 
+      final imageFile = File(filePath);
+
       await supabase.storage
           .from('profile-avatars')
-          .upload(path, filePath);
+          .upload(path, imageFile);
 
       final publicUrl = supabase.storage
           .from('profile-avatars')

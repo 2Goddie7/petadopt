@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/pet_model.dart';
 import '../../../../core/error/exceptions.dart';
@@ -231,9 +232,11 @@ class PetsRemoteDataSourceImpl implements PetsRemoteDataSource {
         final fileName = 'pet_${timestamp}_$i.jpg';
         final path = '$shelterId/$petId/$fileName';
 
+        final imageFile = File(imagePaths[i]);
+
         await supabase.storage
             .from('pet-images')
-            .upload(path, imagePaths[i]);
+            .upload(path, imageFile);
 
         final publicUrl = supabase.storage
             .from('pet-images')

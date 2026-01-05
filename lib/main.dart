@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'core/constants/api_constants.dart';
 import 'core/theme/app_theme.dart';
+import 'config/dependency_injection/injection_container.dart' as di;
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/register_page.dart';
+import 'features/auth/presentation/pages/forgot_password_page.dart';
+import 'features/auth/presentation/pages/home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // 1. Cargar variables de entorno (.env)
+    // 1. Cargar variables de entorno
     await ApiConstants.loadConfig();
 
     // 2. Inicializar Supabase
@@ -16,14 +25,16 @@ Future<void> main() async {
       anonKey: ApiConstants.supabaseAnonKey,
     );
 
-    // 3. Configurar UI del sistema
+    // 3. Inicializar Dependency Injection
+    await di.init();
+
+    // 4. Configurar UI del sistema
     AppTheme.setSystemUIOverlayStyle();
     AppTheme.setPreferredOrientations();
 
-    // 4. Ejecutar app
+    // 5. Ejecutar app
     runApp(const MyApp());
   } catch (e) {
-    // Si falla la inicialización, mostrar error
     runApp(MaterialApp(
       home: Scaffold(
         body: Center(
@@ -47,88 +58,64 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PetAdopt',
-      theme: AppTheme.lightTheme,
-      debugShowCheckedModeBanner: false,
-      home: const SplashScreen(),
+    return BlocProvider(
+      create: (context) => AuthBloc(
+        signInWithEmail: di.sl(),
+        signInWithGoogle: di.sl(),
+        signUp: di.sl(),
+        signOut: di.sl(),
+        resetPassword: di.sl(),
+        getCurrentUser: di.sl(),
+      )..add(const CheckAuthStatusEvent()),
+      child: MaterialApp(
+        title: 'PetAdopt',
+        theme: AppTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        home: const AuthWrapper(),
+        routes: {
+          '/login': (context) => const LoginPage(),
+          '/register': (context) => const RegisterPage(),
+          '/forgot-password': (context) => const ForgotPasswordPage(),
+          '/home': (context) => const HomePage(),
+        },
+      ),
     );
   }
 }
 
-/// Pantalla de splash mientras verifica autenticación
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    // Verificar si hay usuario autenticado
-    final session = Supabase.instance.client.auth.currentSession;
-
-    if (session != null) {
-      // Usuario autenticado - navegar a home
-      // TODO: Implementar navegación cuando tengas las páginas
-      _showMessage('Usuario autenticado: ${session.user.email}');
-    } else {
-      // No hay usuario - navegar a login
-      // TODO: Implementar navegación cuando tengas las páginas
-      _showMessage('No hay usuario autenticado');
-    }
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
+/// Wrapper que decide mostrar Login o Home según el estado de autenticación
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Logo o icono de la app
-            Icon(
-              Icons.pets,
-              size: 80,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(height: 24),
-            
-            // Indicador de carga
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            
-            // Texto
-            Text(
-              'Cargando PetAdopt...',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Conectando con Supabase',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-          ],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is Unauthenticated) {
+          Navigator.of(context).pushReplacementNamed('/login');
+        } else if (state is Authenticated) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
+      },
+      child: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.pets,
+                size: 80,
+                color: Theme.of(context).primaryColor,
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Cargando PetAdopt...',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
         ),
       ),
     );
