@@ -1,5 +1,4 @@
 import 'package:dartz/dartz.dart';
-import 'package:equatable/equatable.dart';
 import '../../domain/entities/pet.dart';
 import '../../domain/repositories/pets_repository.dart';
 import '../../../../core/error/failures.dart';

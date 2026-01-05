@@ -140,56 +140,59 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<UserModel> signInWithGoogle() async {
-    try {
-      final response = await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'petadopt://callback',
-      );
+Future<UserModel> signInWithGoogle() async {
+  try {
+    final started = await supabase.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'petadopt://callback',
+    );
 
-      if (!response) {
-        throw const ServerException('Error al iniciar sesión con Google');
-      }
+    if (!started) {
+      throw const ServerException('No se pudo iniciar Google OAuth');
+    }
 
-      // Esperar a que se complete el flujo OAuth
-      await Future.delayed(const Duration(seconds: 2));
+    // Esperar a que Supabase establezca la sesión
+    await supabase.auth.getSession();
 
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        throw const UnauthorizedException('No se pudo obtener el usuario');
-      }
+    final user = supabase.auth.currentUser;
+    if (user == null) {
+      throw const UnauthorizedException('Usuario no autenticado');
+    }
 
-      // Obtener o crear perfil
-      final profileResponse = await supabase
+    // Intentar obtener el perfil (reintentos cortos)
+    Map<String, dynamic>? profile;
+    for (int i = 0; i < 5; i++) {
+      final res = await supabase
           .from('profiles')
           .select()
           .eq('id', user.id)
           .maybeSingle();
 
-      if (profileResponse == null) {
-        // Crear perfil si no existe
-        final newProfile = {
-          'id': user.id,
-          'email': user.email!,
-          'full_name': user.userMetadata?['full_name'] ?? user.email!.split('@')[0],
-          'user_type': 'adopter',
-          'avatar_url': user.userMetadata?['avatar_url'],
-        };
-
-        await supabase.from('profiles').insert(newProfile);
-        return UserModel.fromJson(newProfile);
+      if (res != null) {
+        profile = res;
+        break;
       }
 
-      return UserModel.fromJson(profileResponse);
-    } on AuthException catch (e) {
-      throw ServerException(e.message, e.statusCode);
-    } on PostgrestException catch (e) {
-      throw ServerException(e.message, e.code);
-    } catch (e) {
-      throw ServerException(e.toString());
+      await Future.delayed(const Duration(milliseconds: 300));
     }
-  }
 
+    if (profile == null) {
+      throw const ServerException(
+        'Perfil no creado aún. Intenta nuevamente.',
+      );
+    }
+
+    return UserModel.fromJson(profile);
+  } on AuthException catch (e) {
+    throw ServerException(e.message, e.statusCode);
+  } on PostgrestException catch (e) {
+    throw ServerException(e.message, e.code);
+  } catch (e) {
+    throw ServerException(e.toString());
+  }
+}
+
+//CERRAR SESION 
   @override
   Future<void> signOut() async {
     try {

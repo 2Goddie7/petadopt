@@ -6,24 +6,24 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
 // ============================================
-// APPROVE REQUEST
+// GET REQUEST BY ID
 // ============================================
 
-class ApproveRequest extends UseCaseWithParams<AdoptionRequest, ApproveRequestParams> {
+class GetRequestById extends UseCaseWithParams<AdoptionRequest, GetRequestByIdParams> {
   final AdoptionsRepository repository;
 
-  ApproveRequest(this.repository);
+  GetRequestById(this.repository);
 
   @override
-  Future<Either<Failure, AdoptionRequest>> call(ApproveRequestParams params) async {
-    return await repository.approveRequest(params.requestId);
+  Future<Either<Failure, AdoptionRequest>> call(GetRequestByIdParams params) async {
+    return await repository.getRequestById(params.requestId);
   }
 }
 
-class ApproveRequestParams extends Equatable {
+class GetRequestByIdParams extends Equatable {
   final String requestId;
 
-  const ApproveRequestParams({required this.requestId});
+  const GetRequestByIdParams({required this.requestId});
 
   @override
   List<Object> get props => [requestId];

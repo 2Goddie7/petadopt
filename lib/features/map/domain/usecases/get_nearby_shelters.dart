@@ -5,7 +5,6 @@ import '../repositories/map_repository.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
-/// Obtiene refugios cercanos a una ubicación
 class GetNearbyShelters extends UseCaseWithParams<List<Shelter>, GetNearbySheltersParams> {
   final MapRepository repository;
 

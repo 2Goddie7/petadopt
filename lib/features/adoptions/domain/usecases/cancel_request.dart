@@ -5,25 +5,26 @@ import '../repositories/adoptions_repository.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
+
 // ============================================
-// APPROVE REQUEST
+// CANCEL REQUEST
 // ============================================
 
-class ApproveRequest extends UseCaseWithParams<AdoptionRequest, ApproveRequestParams> {
+class CancelRequest extends UseCaseWithParams<void, CancelRequestParams> {
   final AdoptionsRepository repository;
 
-  ApproveRequest(this.repository);
+  CancelRequest(this.repository);
 
   @override
-  Future<Either<Failure, AdoptionRequest>> call(ApproveRequestParams params) async {
-    return await repository.approveRequest(params.requestId);
+  Future<Either<Failure, void>> call(CancelRequestParams params) async {
+    return await repository.cancelRequest(params.requestId);
   }
 }
 
-class ApproveRequestParams extends Equatable {
+class CancelRequestParams extends Equatable {
   final String requestId;
 
-  const ApproveRequestParams({required this.requestId});
+  const CancelRequestParams({required this.requestId});
 
   @override
   List<Object> get props => [requestId];

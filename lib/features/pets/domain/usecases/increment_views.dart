@@ -1,29 +1,28 @@
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
-import '../../domain/entities/pet.dart';
 import '../../domain/repositories/pets_repository.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
 // ============================================
-// GET PET BY ID
+// INCREMENT VIEWS
 // ============================================
 
-class GetPetById extends UseCaseWithParams<Pet, GetPetByIdParams> {
+class IncrementPetViews extends UseCaseWithParams<void, IncrementViewsParams> {
   final PetsRepository repository;
 
-  GetPetById(this.repository);
+  IncrementPetViews(this.repository);
 
   @override
-  Future<Either<Failure, Pet>> call(GetPetByIdParams params) async {
-    return await repository.getPetById(params.petId);
+  Future<Either<Failure, void>> call(IncrementViewsParams params) async {
+    return await repository.incrementViews(params.petId);
   }
 }
 
-class GetPetByIdParams extends Equatable {
+class IncrementViewsParams extends Equatable {
   final String petId;
 
-  const GetPetByIdParams({required this.petId});
+  const IncrementViewsParams({required this.petId});
 
   @override
   List<Object> get props => [petId];
