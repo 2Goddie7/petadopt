@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import '../../../../core/constants/app_colors.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
@@ -35,56 +36,106 @@ class _ProfilePageState extends State<ProfilePage> {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mi Perfil'),
-      ),
+      backgroundColor: AppColors.background,
       body: BlocBuilder<ProfileBloc, ProfileState>(
         builder: (context, profileState) {
           final profile =
               profileState is ProfileLoaded ? profileState.profile : null;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Avatar and Name
-              Center(
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: profile?.avatarUrl != null
-                          ? CachedNetworkImageProvider(profile!.avatarUrl!)
-                          : null,
-                      child: profile?.avatarUrl == null
-                          ? const Icon(Icons.person, size: 50)
-                          : null,
+          return CustomScrollView(
+            slivers: [
+              // Header con gradiente
+              SliverAppBar(
+                expandedHeight: 220,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: AppColors.primaryGradient,
                     ),
-                    const SizedBox(height: 12),
-                    if (profile != null)
-                      Text(
-                        profile.fullName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    child: SafeArea(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(height: 40),
+                          // Avatar con borde animado
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.white,
+                              backgroundImage: profile?.avatarUrl != null
+                                  ? CachedNetworkImageProvider(profile!.avatarUrl!)
+                                  : null,
+                              child: profile?.avatarUrl == null
+                                  ? const Icon(Icons.person, size: 50, color: AppColors.primary)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (profile != null)
+                            Text(
+                              profile.fullName,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (profile?.bio != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                              child: Text(
+                                profile!.bio!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
                       ),
-                    if (profile?.bio != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          profile!.bio!,
-                          style: TextStyle(color: Colors.grey[600]),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                  ],
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Divider(),
-
-              // Options
-              ListTile(
+              // Opciones
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 8),
+                    // Options
+                    ListTile(
                 leading: const Icon(Icons.edit),
                 title: const Text('Editar perfil'),
                 trailing: const Icon(Icons.chevron_right),
@@ -184,6 +235,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   );
                 },
+              ),
+                  ]),
+                ),
               ),
             ],
           );

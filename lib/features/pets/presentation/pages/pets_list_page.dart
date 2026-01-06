@@ -8,6 +8,10 @@ import '../bloc/pets_state.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../../shared/widgets/skeleton_loader.dart';
+import '../../../../shared/widgets/animated_badge.dart';
+import '../../../../shared/animations/slide_fade_transition.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class PetsListPage extends StatefulWidget {
   const PetsListPage({super.key});
@@ -31,19 +35,44 @@ class _PetsListPageState extends State<PetsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Mascotas en Adopción'),
+        title: const Text('🐾 Encuentra tu compañero'),
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: AppColors.primaryGradient,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.tune, size: 20),
+            ),
             onPressed: () => _showFilterDialog(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: BlocBuilder<PetsBloc, PetsState>(
         builder: (context, state) {
           if (state is PetsLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: 6,
+              itemBuilder: (context, index) => const PetCardSkeleton(),
+            );
           }
 
           if (state is PetsError) {
@@ -51,19 +80,45 @@ class _PetsListPageState extends State<PetsListPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error: ${state.message}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: AppColors.error,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
+                  const SizedBox(height: 24),
+                  Text(
+                    'Oops! Algo salió mal',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
                     onPressed: () {
                       context.read<PetsBloc>().add(LoadPetsEvent());
                     },
-                    child: const Text('Reintentar'),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Reintentar'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -74,13 +129,32 @@ class _PetsListPageState extends State<PetsListPage> {
             final pets = state.pets;
 
             if (pets.isEmpty) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.pets, size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text('No hay mascotas disponibles'),
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.pets,
+                        size: 80,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'No hay mascotas disponibles',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Intenta cambiar los filtros',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                   ],
                 ),
               );
@@ -89,9 +163,9 @@ class _PetsListPageState extends State<PetsListPage> {
             return RefreshIndicator(
               onRefresh: () async {
                 context.read<PetsBloc>().add(RefreshPetsEvent());
-                // Esperar un momento para que se complete
                 await Future.delayed(const Duration(milliseconds: 500));
               },
+              color: AppColors.primary,
               child: GridView.builder(
                 padding: const EdgeInsets.all(16),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -102,7 +176,10 @@ class _PetsListPageState extends State<PetsListPage> {
                 ),
                 itemCount: pets.length,
                 itemBuilder: (context, index) {
-                  return _PetCard(pet: pets[index]);
+                  return AnimatedListItem(
+                    index: index,
+                    child: _PetCard(pet: pets[index]),
+                  );
                 },
               ),
             );
@@ -117,11 +194,14 @@ class _PetsListPageState extends State<PetsListPage> {
           if (authState.user.userType != UserType.shelter)
             return const SizedBox();
 
-          return FloatingActionButton(
+          return FloatingActionButton.extended(
             onPressed: () {
               Navigator.pushNamed(context, '/create-pet');
             },
-            child: const Icon(Icons.add),
+            icon: const Icon(Icons.add),
+            label: const Text('Agregar'),
+            backgroundColor: AppColors.primary,
+            elevation: 4,
           );
         },
       ),
@@ -232,84 +312,192 @@ class _PetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/pet-detail',
-            arguments: pet.id,
-          );
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: CachedNetworkImage(
-                imageUrl: pet.mainImageUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+    return Hero(
+      tag: 'pet-${pet.id}',
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 3,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: InkWell(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/pet-detail',
+              arguments: pet.id,
+            );
+          },
+          child: Stack(
+            children: [
+              // Imagen de fondo
+              Positioned.fill(
+                child: CachedNetworkImage(
+                  imageUrl: pet.mainImageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primaryLight.withOpacity(0.3),
+                          AppColors.primary.withOpacity(0.3),
+                        ],
+                      ),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      ),
+                    ),
                   ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.pets, size: 48),
+                  errorWidget: (context, url, error) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primaryLight.withOpacity(0.3),
+                          AppColors.primary.withOpacity(0.3),
+                        ],
+                      ),
+                    ),
+                    child: const Icon(Icons.pets, size: 48, color: AppColors.primary),
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    pet.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+              // Gradiente overlay
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.darkOverlay,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${pet.breed} • ${pet.displayAge}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
+                ),
+              ),
+              // Contenido
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.location_on,
-                          size: 12, color: Colors.grey[600]),
-                      const SizedBox(width: 2),
-                      Expanded(
-                        child: Text(
-                          pet.shelterCity ?? 'Ubicación no disponible',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
+                      Text(
+                        pet.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black45,
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${pet.breed} • ${pet.displayAge}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black45,
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 14,
+                            color: Colors.white,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              pet.shelterCity ?? 'Ubicación no disponible',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    color: Colors.black45,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Badge de estado
+              Positioned(
+                top: 12,
+                right: 12,
+                child: AnimatedBadge(
+                  text: pet.adoptionStatus == AdoptionStatus.available
+                      ? 'Disponible'
+                      : 'Adoptado',
+                  backgroundColor: pet.adoptionStatus == AdoptionStatus.available
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+                  icon: pet.adoptionStatus == AdoptionStatus.available
+                      ? Icons.pets
+                      : Icons.check_circle,
+                ),
+              ),
+              // Badge de género
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: pet.gender == PetGender.male
+                        ? Colors.blue.withOpacity(0.9)
+                        : Colors.pink.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        pet.gender == PetGender.male ? Icons.male : Icons.female,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        pet.gender == PetGender.male ? 'Macho' : 'Hembra',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

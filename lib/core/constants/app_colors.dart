@@ -96,6 +96,38 @@ class AppColors {
   static const Color infoLight = Color(0xFFE3F2FD);
 
   // ============================================
+  // GRADIENTES MODERNOS
+  // ============================================
+  
+  /// Gradiente principal (naranja)
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [Color(0xFFFF8243), Color(0xFFFFB088)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Gradiente secundario (turquesa)
+  static const LinearGradient secondaryGradient = LinearGradient(
+    colors: [Color(0xFF1DB5B5), Color(0xFF4DD4D4)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  /// Gradiente de fondo suave
+  static const LinearGradient backgroundGradient = LinearGradient(
+    colors: [Color(0xFFFFFBF5), Color(0xFFFFFFFF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+  
+  /// Gradiente oscuro para overlays
+  static const LinearGradient darkOverlay = LinearGradient(
+    colors: [Colors.transparent, Color(0x88000000)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  // ============================================
   // COLORES DE CARDS DE MASCOTAS (PASTELES)
   // ============================================
   
@@ -209,24 +241,6 @@ class AppColors {
   
   /// Color de los marcadores de refugios en el mapa
   static const Color mapMarkerShelter = secondary;
-
-  // ============================================
-  // GRADIENTES
-  // ============================================
-  
-  /// Gradiente naranja para botones y headers
-  static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFFFF8243), Color(0xFFFFB088)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  
-  /// Gradiente turquesa para secciones de refugio
-  static const LinearGradient secondaryGradient = LinearGradient(
-    colors: [Color(0xFF1DB5B5), Color(0xFF4DD4D4)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
 
   // ============================================
   // COLORES PARA GÉNERO DE MASCOTAS
