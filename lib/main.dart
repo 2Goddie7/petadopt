@@ -13,15 +13,19 @@ import 'features/auth/presentation/pages/forgot_password_page.dart';
 import 'features/auth/presentation/pages/home_page.dart';
 import 'features/pets/presentation/pages/pets_list_page.dart';
 import 'features/pets/presentation/pages/create_pet_page.dart';
+import 'features/pets/presentation/pages/pet_detail_page.dart';
+import 'features/pets/presentation/pages/edit_pet_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
 import 'features/pets/presentation/bloc/pets_bloc.dart';
 import 'features/pets/presentation/bloc/pets_event.dart';
+import 'features/pets/presentation/bloc/pet_detail_bloc.dart';
 import 'features/adoptions/presentation/bloc/adoptions_bloc.dart';
 import 'features/ai_chat/presentation/bloc/chat_bloc.dart';
 import 'features/map/presentation/bloc/map_bloc.dart';
 import 'features/profile/presentation/bloc/profile_bloc.dart';
 import 'features/favorites/presentation/bloc/favorites_bloc.dart';
 import 'package:app_links/app_links.dart';
+import 'package:get_it/get_it.dart';
 import 'dart:async';
 
 Future<void> main() async {
@@ -212,6 +216,34 @@ class _MyAppState extends State<MyApp> {
           '/pets': (context) => const PetsListPage(),
           '/create-pet': (context) => const CreatePetPage(),
         },
+        onGenerateRoute: (settings) {
+          if (settings.name == '/pet-detail') {
+            final petId = settings.arguments as String?;
+            if (petId != null) {
+              return MaterialPageRoute(
+                builder: (_) => BlocProvider(
+                  create: (_) => PetDetailBloc(
+                    getPetById: GetIt.instance(),
+                    incrementViews: GetIt.instance(),
+                    deletePet: GetIt.instance(),
+                  ),
+                  child: PetDetailPage(petId: petId),
+                ),
+              );
+            }
+          }
+
+          if (settings.name == '/edit-pet') {
+            final pet = settings.arguments;
+            if (pet != null) {
+              return MaterialPageRoute(
+                builder: (_) => EditPetPage(pet: pet as dynamic),
+              );
+            }
+          }
+
+          return null;
+        },
       ),
     );
   }
@@ -224,10 +256,20 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
+        print('🔍 AuthWrapper - Estado actual: ${state.runtimeType}');
+        
         if (state is Unauthenticated) {
-          Navigator.of(context).pushReplacementNamed('/login');
+          print('🔓 AuthWrapper - Usuario no autenticado, redirigiendo al login...');
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/login',
+            (route) => false,
+          );
         } else if (state is Authenticated) {
-          Navigator.of(context).pushReplacementNamed('/home');
+          print('✅ AuthWrapper - Usuario autenticado, redirigiendo al home...');
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            '/home',
+            (route) => false,
+          );
         }
       },
       child: Scaffold(

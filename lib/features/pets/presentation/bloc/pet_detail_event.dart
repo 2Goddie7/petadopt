@@ -31,3 +31,13 @@ class IncrementPetViewsEvent extends PetDetailEvent {
 class RefreshPetDetailEvent extends PetDetailEvent {
   const RefreshPetDetailEvent();
 }
+
+/// Eliminar mascota
+class DeletePetEvent extends PetDetailEvent {
+  final String petId;
+
+  const DeletePetEvent({required this.petId});
+
+  @override
+  List<Object?> get props => [petId];
+}

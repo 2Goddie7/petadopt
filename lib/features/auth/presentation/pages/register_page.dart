@@ -7,6 +7,7 @@ import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../features/auth/domain/entities/user.dart';
+import '../../../../core/utils/location_helper.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -24,9 +25,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
-  
+
   UserType _selectedUserType = UserType.adopter;
   bool _showLocationFields = false;
+  bool _isLoadingLocation = false;
 
   @override
   void dispose() {
@@ -45,28 +47,75 @@ class _RegisterPageState extends State<RegisterPage> {
       // Parsear latitud y longitud si están presentes
       double? latitude;
       double? longitude;
-      
+
       if (_latitudeController.text.trim().isNotEmpty) {
         latitude = double.tryParse(_latitudeController.text.trim());
       }
-      
+
       if (_longitudeController.text.trim().isNotEmpty) {
         longitude = double.tryParse(_longitudeController.text.trim());
       }
-      
+
       context.read<AuthBloc>().add(
             SignUpEvent(
               email: _emailController.text.trim(),
               password: _passwordController.text,
               fullName: _fullNameController.text.trim(),
               userType: _selectedUserType,
-              phone: _phoneController.text.trim().isEmpty 
-                  ? null 
+              phone: _phoneController.text.trim().isEmpty
+                  ? null
                   : _phoneController.text.trim(),
               latitude: latitude,
               longitude: longitude,
             ),
           );
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      final position = await LocationHelper.getCurrentLocation();
+
+      if (position != null) {
+        setState(() {
+          _latitudeController.text = position.latitude.toStringAsFixed(6);
+          _longitudeController.text = position.longitude.toStringAsFixed(6);
+          _showLocationFields = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Ubicación obtenida correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'No se pudo obtener la ubicación. Verifica los permisos.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoadingLocation = false);
     }
   }
 
@@ -103,9 +152,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: [
                     Text(
                       'Únete a PetAdopt',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -117,7 +167,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    
+
                     // Tipo de usuario
                     Text(
                       'Tipo de cuenta',
@@ -158,7 +208,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Nombre completo
                     CustomTextField(
                       label: 'Nombre completo',
@@ -169,7 +219,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       enabled: !isLoading,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Email
                     CustomTextField(
                       label: 'Email',
@@ -181,7 +231,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       enabled: !isLoading,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Teléfono (opcional)
                     CustomTextField(
                       label: 'Teléfono (opcional)',
@@ -198,29 +248,53 @@ class _RegisterPageState extends State<RegisterPage> {
                       enabled: !isLoading,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Toggle para ubicación (solo para refugios)
-                    if (_selectedUserType == UserType.shelter)
-                      CheckboxListTile(
-                        title: const Text('Agregar ubicación personalizada'),
-                        subtitle: const Text('Por defecto: Escuela Politécnica Nacional'),
-                        value: _showLocationFields,
-                        onChanged: isLoading
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  _showLocationFields = value ?? false;
-                                  if (!_showLocationFields) {
-                                    _latitudeController.clear();
-                                    _longitudeController.clear();
-                                  }
-                                });
-                              },
-                        contentPadding: EdgeInsets.zero,
+                    if (_selectedUserType == UserType.shelter) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CheckboxListTile(
+                              title:
+                                  const Text('Agregar ubicación personalizada'),
+                              subtitle:
+                                  const Text('Por defecto: Quito, Ecuador'),
+                              value: _showLocationFields,
+                              onChanged: isLoading
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        _showLocationFields = value ?? false;
+                                        if (!_showLocationFields) {
+                                          _latitudeController.clear();
+                                          _longitudeController.clear();
+                                        }
+                                      });
+                                    },
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          IconButton(
+                            icon: _isLoadingLocation
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.my_location),
+                            onPressed: (isLoading || _isLoadingLocation)
+                                ? null
+                                : _getCurrentLocation,
+                            tooltip: 'Usar mi ubicación actual',
+                          ),
+                        ],
                       ),
-                    
+                    ],
+
                     // Campos de ubicación (solo si está activado)
-                    if (_showLocationFields && _selectedUserType == UserType.shelter) ...[
+                    if (_showLocationFields &&
+                        _selectedUserType == UserType.shelter) ...[
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -229,7 +303,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               label: 'Latitud',
                               hint: '-0.180653',
                               controller: _latitudeController,
-                              keyboardType: const TextInputType.numberWithOptions(
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
                                 decimal: true,
                                 signed: true,
                               ),
@@ -255,7 +330,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               label: 'Longitud',
                               hint: '-78.467834',
                               controller: _longitudeController,
-                              keyboardType: const TextInputType.numberWithOptions(
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
                                 decimal: true,
                                 signed: true,
                               ),
@@ -279,7 +355,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    
+
                     // Contraseña
                     CustomTextField(
                       label: 'Contraseña',
@@ -291,7 +367,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       enabled: !isLoading,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Confirmar contraseña
                     CustomTextField(
                       label: 'Confirmar contraseña',
@@ -308,7 +384,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       enabled: !isLoading,
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Botón de registro
                     CustomButton(
                       text: 'Crear Cuenta',
@@ -316,7 +392,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       isLoading: isLoading,
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Link a login
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -369,9 +445,8 @@ class _UserTypeCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected
-                ? Theme.of(context).primaryColor
-                : Colors.grey[300]!,
+            color:
+                isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),

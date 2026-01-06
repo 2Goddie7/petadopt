@@ -46,12 +46,27 @@ class AdoptionsRemoteDataSourceImpl implements AdoptionsRemoteDataSource {
     AdoptionRequestModel request,
   ) async {
     try {
+      // Obtener adopter_id del usuario actual
+      final currentUser = supabase.auth.currentUser;
+      if (currentUser == null) {
+        throw const UnauthorizedException('Usuario no autenticado');
+      }
+
+      // Obtener shelter_id desde la tabla pets
+      final petResponse = await supabase
+          .from('pets')
+          .select('shelter_id')
+          .eq('id', request.petId)
+          .single();
+
+      final shelterId = petResponse['shelter_id'] as String;
+
       // Verificar si ya existe una solicitud activa
       final existingRequest = await supabase
           .from('adoption_requests')
-          .select()
+          .select('id, status')
           .eq('pet_id', request.petId)
-          .eq('adopter_id', request.adopterId)
+          .eq('adopter_id', currentUser.id)
           .eq('status', 'pending')
           .maybeSingle();
 
@@ -59,7 +74,16 @@ class AdoptionsRemoteDataSourceImpl implements AdoptionsRemoteDataSource {
         throw const DuplicateException('Ya tienes una solicitud pendiente para esta mascota');
       }
 
-      final requestData = request.toJsonForCreation();
+      // Crear datos correctos para insertar
+      final requestData = {
+        'pet_id': request.petId,
+        'adopter_id': currentUser.id,
+        'shelter_id': shelterId,
+        'message': request.message,
+        'status': 'pending',
+      };
+
+      print('📤 Creando solicitud con datos: $requestData');
 
       final response = await supabase
           .from('adoption_requests')
@@ -67,8 +91,11 @@ class AdoptionsRemoteDataSourceImpl implements AdoptionsRemoteDataSource {
           .select()
           .single();
 
+      print('✅ Solicitud creada exitosamente: ${response['id']}');
+
       return AdoptionRequestModel.fromJson(response);
     } on PostgrestException catch (e) {
+      print('❌ PostgrestException: ${e.code} - ${e.message}');
       if (e.code == '23503') {
         throw const InvalidDataException('Mascota o usuario no encontrado');
       } else if (e.code == '23505') {
@@ -76,7 +103,8 @@ class AdoptionsRemoteDataSourceImpl implements AdoptionsRemoteDataSource {
       }
       throw ServerException(e.message, e.code);
     } catch (e) {
-      if (e is DuplicateException) rethrow;
+      print('❌ Error general: $e');
+      if (e is DuplicateException || e is UnauthorizedException) rethrow;
       throw ServerException(e.toString());
     }
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../bloc/pet_detail_bloc.dart';
 import '../bloc/pet_detail_event.dart';
 import '../bloc/pet_detail_state.dart';
@@ -9,11 +9,18 @@ import '../../domain/entities/pet.dart';
 import '../../../favorites/presentation/bloc/favorites_bloc.dart';
 import '../../../favorites/presentation/bloc/favorites_event.dart';
 import '../../../favorites/presentation/bloc/favorites_state.dart';
+import '../../../adoptions/presentation/bloc/adoptions_bloc.dart';
+import '../../../adoptions/presentation/bloc/adoptions_event.dart';
+import '../../../adoptions/presentation/bloc/adoptions_state.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
+import 'edit_pet_page.dart';
 import 'package:get_it/get_it.dart';
 
 class PetDetailPage extends StatefulWidget {
   final String petId;
-  
+
   const PetDetailPage({super.key, required this.petId});
 
   @override
@@ -22,6 +29,7 @@ class PetDetailPage extends StatefulWidget {
 
 class _PetDetailPageState extends State<PetDetailPage> {
   late final PetDetailBloc _petDetailBloc;
+  final _messageController = TextEditingController();
 
   @override
   void initState() {
@@ -29,9 +37,11 @@ class _PetDetailPageState extends State<PetDetailPage> {
     _petDetailBloc = PetDetailBloc(
       getPetById: GetIt.instance(),
       incrementViews: GetIt.instance(),
+      deletePet: GetIt.instance(),
     );
     _petDetailBloc.add(LoadPetDetailEvent(petId: widget.petId));
-    
+    _petDetailBloc.add(IncrementPetViewsEvent(petId: widget.petId));
+
     // Check if pet is favorite
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId != null) {
@@ -43,6 +53,7 @@ class _PetDetailPageState extends State<PetDetailPage> {
 
   @override
   void dispose() {
+    _messageController.dispose();
     _petDetailBloc.close();
     super.dispose();
   }
@@ -77,7 +88,8 @@ class _PetDetailPageState extends State<PetDetailPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                    const Icon(Icons.error_outline,
+                        size: 64, color: Colors.red),
                     const SizedBox(height: 16),
                     Text(
                       'Error al cargar mascota',
@@ -100,6 +112,227 @@ class _PetDetailPageState extends State<PetDetailPage> {
             return const SizedBox();
           },
         ),
+        bottomSheet: BlocBuilder<PetDetailBloc, PetDetailState>(
+          builder: (context, petState) {
+            if (petState is! PetDetailLoaded) return const SizedBox();
+            return _buildAdoptionBottomSheet(context, petState.pet);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdoptionBottomSheet(BuildContext context, Pet pet) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
+        if (authState is! Authenticated) return const SizedBox();
+
+        // Solo mostrar para adoptantes
+        if (authState.user.userType != UserType.adopter) {
+          return const SizedBox();
+        }
+
+        // No mostrar si ya está adoptado
+        if (pet.adoptionStatus == AdoptionStatus.adopted) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.grey[200],
+            child: const Center(
+              child: Text(
+                '🎉 Esta mascota ya fue adoptada',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return BlocConsumer<AdoptionsBloc, AdoptionsState>(
+          listener: (context, adoptionState) {
+            if (adoptionState is AdoptionCreated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✓ Solicitud enviada correctamente'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            } else if (adoptionState is AdoptionsError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(adoptionState.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          builder: (context, adoptionState) {
+            final isLoading = adoptionState is AdoptionsLoading;
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: isLoading
+                        ? null
+                        : () => _showAdoptionRequestDialog(context, pet),
+                    icon: isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.favorite),
+                    label: Text(
+                      isLoading ? 'Enviando...' : 'Solicitar Adopción',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Método helper para eliminar mascota
+  Future<void> _deletePet(BuildContext context, String petId) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Eliminando mascota...')),
+      );
+
+      await Supabase.instance.client.from('pets').delete().eq('id', petId);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✓ Mascota eliminada correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showAdoptionRequestDialog(BuildContext context, Pet pet) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Adoptar a ${pet.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Deseas solicitar la adopción de ${pet.name}?',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _messageController,
+              decoration: const InputDecoration(
+                labelText: 'Mensaje para el refugio (opcional)',
+                hintText: 'Cuéntanos por qué quieres adoptar...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _messageController.clear();
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+
+              context.read<AdoptionsBloc>().add(
+                    CreateAdoptionRequestEvent(
+                      petId: pet.id,
+                      message: _messageController.text.trim(),
+                    ),
+                  );
+              _messageController.clear();
+            },
+            child: const Text('Enviar Solicitud'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, Pet pet) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar Mascota'),
+        content: Text(
+          '¿Estás seguro de que deseas eliminar a ${pet.name}? '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _deletePet(context, pet.id);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
       ),
     );
   }
@@ -134,44 +367,61 @@ class _PetDetailPageState extends State<PetDetailPage> {
                   ),
           ),
           actions: [
-            BlocBuilder<FavoritesBloc, FavoritesState>(
-              builder: (context, state) {
-                bool isFavorite = false;
-                
-                if (state is FavoritesLoaded) {
-                  isFavorite = state.favoriteStatus[pet.id] ?? false;
-                } else if (state is FavoriteToggled && state.petId == pet.id) {
-                  isFavorite = state.isFavorite;
-                }
+            BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, authState) {
+                if (authState is! Authenticated) return const SizedBox();
 
-                return IconButton(
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.red : null,
-                  ),
-                  onPressed: () {
-                    if (userId.isNotEmpty) {
-                      context.read<FavoritesBloc>().add(
-                            ToggleFavoriteEvent(
-                              userId: userId,
-                              petId: pet.id,
+                // Si es SHELTER → mostrar botones editar/eliminar
+                if (authState.user.userType == UserType.shelter) {
+                  return Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EditPetPage(pet: pet),
                             ),
                           );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Debes iniciar sesión para agregar favoritos'),
-                        ),
-                      );
-                    }
+                          if (result == true && mounted) {
+                            _petDetailBloc.add(
+                              LoadPetDetailEvent(petId: widget.petId),
+                            );
+                          }
+                        },
+                        tooltip: 'Editar mascota',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _showDeleteDialog(context, pet),
+                        tooltip: 'Eliminar mascota',
+                      ),
+                    ],
+                  );
+                }
+
+                // Si es ADOPTANTE → mostrar botón de favorito
+                return BlocBuilder<FavoritesBloc, FavoritesState>(
+                  builder: (context, favState) {
+                    final isFavorite =
+                        favState is FavoriteToggled && favState.isFavorite;
+                    return IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : Colors.white,
+                      ),
+                      onPressed: () {
+                        context.read<FavoritesBloc>().add(
+                              ToggleFavoriteEvent(
+                                userId: authState.user.id,
+                                petId: pet.id,
+                              ),
+                            );
+                      },
+                    );
                   },
                 );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () {
-                // TODO: Compartir
               },
             ),
           ],
@@ -188,7 +438,10 @@ class _PetDetailPageState extends State<PetDetailPage> {
                     Expanded(
                       child: Text(
                         pet.name,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                       ),
@@ -197,7 +450,7 @@ class _PetDetailPageState extends State<PetDetailPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Ubicación
                 Row(
                   children: [
@@ -226,11 +479,11 @@ class _PetDetailPageState extends State<PetDetailPage> {
                     ],
                   ),
                 ],
-                
+
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 16),
-                
+
                 // Información
                 Text(
                   'Información',
@@ -239,18 +492,19 @@ class _PetDetailPageState extends State<PetDetailPage> {
                       ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 _buildInfoRow(Icons.pets, 'Especie', pet.species.name),
-                _buildInfoRow(Icons.cake, 'Edad', '${pet.ageYears} años, ${pet.ageMonths} meses'),
+                _buildInfoRow(Icons.cake, 'Edad',
+                    '${pet.ageYears} años, ${pet.ageMonths} meses'),
                 _buildInfoRow(Icons.straighten, 'Tamaño', pet.size.name),
                 _buildInfoRow(Icons.male, 'Género', pet.gender.name),
                 _buildInfoRow(Icons.label, 'Raza', pet.breed),
                 _buildInfoRow(Icons.visibility, 'Vistas', '${pet.viewsCount}'),
-                
+
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 16),
-                
+
                 // Descripción
                 Text(
                   'Descripción',
@@ -263,9 +517,9 @@ class _PetDetailPageState extends State<PetDetailPage> {
                   pet.description,
                   style: const TextStyle(fontSize: 16, height: 1.5),
                 ),
-                
+
                 const SizedBox(height: 24),
-                
+
                 // Galería
                 if (hasGallery) ...[
                   Text(
@@ -293,7 +547,8 @@ class _PetDetailPageState extends State<PetDetailPage> {
                               placeholder: (context, url) => Container(
                                 color: Colors.grey[300],
                                 child: const Center(
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
                                 ),
                               ),
                               errorWidget: (context, url, error) => Container(
@@ -308,8 +563,8 @@ class _PetDetailPageState extends State<PetDetailPage> {
                   ),
                   const SizedBox(height: 24),
                 ],
-                
-                const SizedBox(height: 80),
+
+                const SizedBox(height: 100),
               ],
             ),
           ),

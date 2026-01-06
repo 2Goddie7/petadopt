@@ -17,11 +17,12 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
-  
+
   @override
   void initState() {
     super.initState();
-    // Intentar obtener ubicación del usuario primero
+    // Cargar refugios y ubicación del usuario
+    context.read<MapBloc>().add(const LoadAllSheltersEvent());
     context.read<MapBloc>().add(const GetUserLocationEvent());
   }
 
@@ -70,11 +71,20 @@ class _MapPageState extends State<MapPage> {
             );
           }
 
-          if (state is LocationUpdated) {
-            // Centrar mapa en ubicación del usuario
+          // Centrar mapa automáticamente cuando se obtiene ubicación del usuario
+          if (state is MapLoaded && state.userLocation != null) {
             _mapController.move(
-              LatLng(state.location.latitude, state.location.longitude),
-              13.0,
+              LatLng(
+                  state.userLocation!.latitude, state.userLocation!.longitude),
+              14.0,
+            );
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✓ Tu ubicación actualizada'),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.green,
+              ),
             );
           }
         },
@@ -89,19 +99,22 @@ class _MapPageState extends State<MapPage> {
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    center: _getInitialCenter(state),
-                    zoom: 13.0,
+                    initialCenter: _getInitialCenter(state),
+                    initialZoom: 13.0,
                     minZoom: 5.0,
                     maxZoom: 18.0,
-                    interactiveFlags: InteractiveFlag.all,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.all,
+                    ),
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.petadopt',
                       maxNativeZoom: 19,
                     ),
-                    
+
                     // Marcador de ubicación del usuario
                     if (state.userLocation != null)
                       MarkerLayer(
@@ -117,7 +130,8 @@ class _MapPageState extends State<MapPage> {
                               decoration: BoxDecoration(
                                 color: Colors.blue.withOpacity(0.3),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.blue, width: 3),
+                                border:
+                                    Border.all(color: Colors.blue, width: 3),
                               ),
                               child: const Icon(
                                 Icons.my_location,
@@ -128,11 +142,12 @@ class _MapPageState extends State<MapPage> {
                           ),
                         ],
                       ),
-                    
+
                     // Marcadores de refugios
                     MarkerLayer(
                       markers: state.shelters.map((shelter) {
-                        final isSelected = state.selectedShelter?.id == shelter.id;
+                        final isSelected =
+                            state.selectedShelter?.id == shelter.id;
                         return Marker(
                           point: LatLng(shelter.latitude, shelter.longitude),
                           width: isSelected ? 48 : 40,
@@ -157,7 +172,8 @@ class _MapPageState extends State<MapPage> {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    child: _buildShelterInfoCard(context, state.selectedShelter!),
+                    child:
+                        _buildShelterInfoCard(context, state.selectedShelter!),
                   ),
 
                 // Botón flotante con contador de refugios
@@ -230,14 +246,14 @@ class _MapPageState extends State<MapPage> {
         state.userLocation!.longitude,
       );
     }
-    
+
     if (state.shelters.isNotEmpty) {
       return LatLng(
         state.shelters.first.latitude,
         state.shelters.first.longitude,
       );
     }
-    
+
     // Centro de México como fallback
     return LatLng(19.4326, -99.1332);
   }
@@ -268,7 +284,7 @@ class _MapPageState extends State<MapPage> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -282,14 +298,18 @@ class _MapPageState extends State<MapPage> {
                         children: [
                           Text(
                             shelter.shelterName,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                              const Icon(Icons.location_on,
+                                  size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
@@ -312,9 +332,7 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ],
                 ),
-                
                 const SizedBox(height: 12),
-                
                 Row(
                   children: [
                     _buildInfoChip(
@@ -330,8 +348,8 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ],
                 ),
-                
-                if (shelter.description != null && shelter.description!.isNotEmpty) ...[
+                if (shelter.description != null &&
+                    shelter.description!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
                     shelter.description!,
@@ -340,9 +358,7 @@ class _MapPageState extends State<MapPage> {
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                 ],
-                
                 const SizedBox(height: 12),
-                
                 Row(
                   children: [
                     if (shelter.phone != null)

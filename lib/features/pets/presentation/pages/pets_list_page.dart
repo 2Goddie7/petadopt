@@ -5,6 +5,9 @@ import '../../domain/entities/pet.dart';
 import '../bloc/pets_bloc.dart';
 import '../bloc/pets_event.dart';
 import '../bloc/pets_state.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../auth/domain/entities/user.dart';
 
 class PetsListPage extends StatefulWidget {
   const PetsListPage({super.key});
@@ -108,11 +111,19 @@ class _PetsListPageState extends State<PetsListPage> {
           return const SizedBox();
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/create-pet');
+      floatingActionButton: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, authState) {
+          if (authState is! Authenticated) return const SizedBox();
+          if (authState.user.userType != UserType.shelter)
+            return const SizedBox();
+
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/create-pet');
+            },
+            child: const Icon(Icons.add),
+          );
         },
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -279,7 +290,8 @@ class _PetCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                      Icon(Icons.location_on,
+                          size: 12, color: Colors.grey[600]),
                       const SizedBox(width: 2),
                       Expanded(
                         child: Text(

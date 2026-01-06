@@ -106,6 +106,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (failure) {
         print('❌ AuthBloc - Error al cerrar sesión: ${failure.message}');
         emit(AuthError(message: failure.message));
+        // Emitir Unauthenticated después del error
+        emit(const Unauthenticated());
       },
       (_) {
         print('✅ AuthBloc - Sesión cerrada correctamente');

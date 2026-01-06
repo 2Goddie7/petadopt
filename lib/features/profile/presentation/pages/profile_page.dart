@@ -160,7 +160,29 @@ class _ProfilePageState extends State<ProfilePage> {
                 title: const Text('Cerrar sesión',
                     style: TextStyle(color: Colors.red)),
                 onTap: () {
-                  context.read<AuthBloc>().add(const SignOutEvent());
+                  showDialog(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Cerrar Sesión'),
+                      content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancelar'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            context.read<AuthBloc>().add(const SignOutEvent());
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text('Cerrar Sesión'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],
