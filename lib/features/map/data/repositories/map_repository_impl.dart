@@ -162,7 +162,7 @@ class MapRepositoryImpl implements MapRepository {
       final location = Location(
         latitude: position.latitude,
         longitude: position.longitude,
-        timestamp: position.timestamp ?? DateTime.now(),
+        timestamp: position.timestamp,
       );
 
       return Right(location);

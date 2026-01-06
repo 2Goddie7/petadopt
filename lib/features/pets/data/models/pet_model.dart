@@ -28,6 +28,7 @@ class PetModel extends Pet {
     required super.createdAt,
     required super.updatedAt,
     super.shelterName,
+    super.shelterCity,
     super.shelterLatitude,
     super.shelterLongitude,
   });
@@ -66,6 +67,7 @@ class PetModel extends Pet {
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       shelterName: json['shelter_name'] as String?,
+      shelterCity: json['shelter_city'] as String?,
       shelterLatitude: json['shelter_latitude'] != null
           ? (json['shelter_latitude'] as num).toDouble()
           : null,

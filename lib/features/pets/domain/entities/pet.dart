@@ -35,6 +35,7 @@ class Pet extends Equatable {
   
   // Información del refugio (opcional, puede venir del join)
   final String? shelterName;
+  final String? shelterCity;
   final double? shelterLatitude;
   final double? shelterLongitude;
 
@@ -63,6 +64,7 @@ class Pet extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.shelterName,
+    this.shelterCity,
     this.shelterLatitude,
     this.shelterLongitude,
   });
@@ -136,6 +138,9 @@ class Pet extends Equatable {
       return '$ageYears ${ageYears == 1 ? 'año' : 'años'} y $ageMonths ${ageMonths == 1 ? 'mes' : 'meses'}';
     }
   }
+
+  /// Alias para ageDisplay
+  String get displayAge => ageDisplay;
 
   /// Verifica si está disponible para adopción
   bool get isAvailable => adoptionStatus == AdoptionStatus.available;
