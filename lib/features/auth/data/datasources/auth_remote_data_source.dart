@@ -12,6 +12,8 @@ abstract class AuthRemoteDataSource {
     required String fullName,
     required String userType,
     String? phone,
+    double? latitude,
+    double? longitude,
   });
 
   /// Inicia sesión con email y contraseña
@@ -55,36 +57,109 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String fullName,
     required String userType,
     String? phone,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
-      // Registrar usuario en Supabase Auth
+      print('📝 SignUp - Iniciando registro...');
+      print('📝 Email: $email');
+      print('📝 Full Name: $fullName');
+      print('📝 User Type: $userType');
+      print('📝 Phone: $phone');
+
+      // Registrar usuario en Supabase Auth (CORREGIDO: user_type y full_name)
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
         data: {
           'full_name': fullName,
-          'user_type': userType,
+          'user_type': userType,  // IMPORTANTE: debe ser user_type, no role
           'phone': phone,
+          if (latitude != null) 'latitude': latitude.toString(),
+          if (longitude != null) 'longitude': longitude.toString(),
         },
       );
 
+      print('✅ SignUp - Respuesta de Supabase recibida');
+
       if (response.user == null) {
+        print('❌ SignUp - Usuario nulo en la respuesta');
         throw const ServerException('Error al crear la cuenta');
       }
 
+      print('✅ SignUp - Usuario creado: ${response.user!.id}');
+      print('✅ SignUp - Metadata: ${response.user!.userMetadata}');
+      
+      // IMPORTANTE: Verificar que la sesión esté activa
+      final session = response.session;
+      if (session == null) {
+        print('⚠️ SignUp - No hay sesión activa, necesitas confirmar el email');
+        throw const ServerException('Por favor, confirma tu email antes de continuar');
+      }
+
+      print('✅ SignUp - Sesión activa: ${session.accessToken.substring(0, 20)}...');
+
       // El trigger de Supabase crea automáticamente el perfil
       // Esperar un momento para que se cree
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(seconds: 2));
 
       // Obtener el perfil creado
       final profileResponse = await supabase
           .from('profiles')
           .select()
           .eq('id', response.user!.id)
-          .single();
+          .maybeSingle();
+
+      print('✅ SignUp - Perfil verificado: $profileResponse');
+
+      if (profileResponse == null) {
+        print('⚠️ SignUp - Perfil no encontrado, creando manualmente...');
+        // Crear perfil manualmente si el trigger falló
+        await supabase.from('profiles').insert({
+          'id': response.user!.id,
+          'email': email,
+          'full_name': fullName,
+          'user_type': userType,
+          'phone': phone,
+        });
+
+        // Si es shelter, crear el registro de shelter también
+        if (userType == 'shelter') {
+          print('🏠 SignUp - Creando registro de shelter...');
+          await supabase.from('shelters').insert({
+            'profile_id': response.user!.id,
+            'shelter_name': fullName,
+            'address': 'Dirección no especificada',
+            'city': 'Quito',
+            'country': 'Ecuador',
+            'latitude': latitude ?? -0.180653,
+            'longitude': longitude ?? -78.467834,
+            'phone': phone ?? '0000-0000',
+          });
+          print('✅ SignUp - Shelter creado correctamente');
+        }
+
+        // Obtener el perfil recién creado
+        final newProfileResponse = await supabase
+            .from('profiles')
+            .select()
+            .eq('id', response.user!.id)
+            .single();
+
+        return UserModel.fromJson(newProfileResponse);
+      }
+
+      // Verificar que currentUser esté disponible
+      final currentUser = supabase.auth.currentUser;
+      print('🔍 SignUp - Usuario actual después del registro: ${currentUser?.id}');
+      
+      if (currentUser == null) {
+        print('❌ SignUp - ADVERTENCIA: currentUser es null después del registro');
+      }
 
       return UserModel.fromJson(profileResponse);
     } on AuthException catch (e) {
+      print('❌ SignUp - AuthException: ${e.message}');
       if (e.message.contains('already registered')) {
         throw EmailAlreadyInUseException(e.message, e.statusCode);
       } else if (e.message.contains('Password should be')) {
@@ -93,8 +168,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         throw ServerException(e.message, e.statusCode);
       }
     } on PostgrestException catch (e) {
+      print('❌ SignUp - PostgrestException: ${e.message}');
       throw ServerException(e.message, e.code);
     } catch (e) {
+      print('❌ SignUp - Error desconocido: $e');
       throw ServerException(e.toString());
     }
   }

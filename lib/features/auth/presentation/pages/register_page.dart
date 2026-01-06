@@ -22,8 +22,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordController = TextEditingController();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _latitudeController = TextEditingController();
+  final _longitudeController = TextEditingController();
   
   UserType _selectedUserType = UserType.adopter;
+  bool _showLocationFields = false;
 
   @override
   void dispose() {
@@ -32,11 +35,25 @@ class _RegisterPageState extends State<RegisterPage> {
     _confirmPasswordController.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
   void _handleRegister() {
     if (_formKey.currentState!.validate()) {
+      // Parsear latitud y longitud si están presentes
+      double? latitude;
+      double? longitude;
+      
+      if (_latitudeController.text.trim().isNotEmpty) {
+        latitude = double.tryParse(_latitudeController.text.trim());
+      }
+      
+      if (_longitudeController.text.trim().isNotEmpty) {
+        longitude = double.tryParse(_longitudeController.text.trim());
+      }
+      
       context.read<AuthBloc>().add(
             SignUpEvent(
               email: _emailController.text.trim(),
@@ -46,6 +63,8 @@ class _RegisterPageState extends State<RegisterPage> {
               phone: _phoneController.text.trim().isEmpty 
                   ? null 
                   : _phoneController.text.trim(),
+              latitude: latitude,
+              longitude: longitude,
             ),
           );
     }
@@ -178,6 +197,87 @@ class _RegisterPageState extends State<RegisterPage> {
                       },
                       enabled: !isLoading,
                     ),
+                    const SizedBox(height: 16),
+                    
+                    // Toggle para ubicación (solo para refugios)
+                    if (_selectedUserType == UserType.shelter)
+                      CheckboxListTile(
+                        title: const Text('Agregar ubicación personalizada'),
+                        subtitle: const Text('Por defecto: Escuela Politécnica Nacional'),
+                        value: _showLocationFields,
+                        onChanged: isLoading
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _showLocationFields = value ?? false;
+                                  if (!_showLocationFields) {
+                                    _latitudeController.clear();
+                                    _longitudeController.clear();
+                                  }
+                                });
+                              },
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    
+                    // Campos de ubicación (solo si está activado)
+                    if (_showLocationFields && _selectedUserType == UserType.shelter) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CustomTextField(
+                              label: 'Latitud',
+                              hint: '-0.180653',
+                              controller: _latitudeController,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                              prefixIcon: Icons.my_location,
+                              validator: (value) {
+                                if (value != null && value.isNotEmpty) {
+                                  final lat = double.tryParse(value);
+                                  if (lat == null) {
+                                    return 'Latitud inválida';
+                                  }
+                                  if (lat < -90 || lat > 90) {
+                                    return 'Debe estar entre -90 y 90';
+                                  }
+                                }
+                                return null;
+                              },
+                              enabled: !isLoading,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: CustomTextField(
+                              label: 'Longitud',
+                              hint: '-78.467834',
+                              controller: _longitudeController,
+                              keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true,
+                                signed: true,
+                              ),
+                              prefixIcon: Icons.location_on,
+                              validator: (value) {
+                                if (value != null && value.isNotEmpty) {
+                                  final lng = double.tryParse(value);
+                                  if (lng == null) {
+                                    return 'Longitud inválida';
+                                  }
+                                  if (lng < -180 || lng > 180) {
+                                    return 'Debe estar entre -180 y 180';
+                                  }
+                                }
+                                return null;
+                              },
+                              enabled: !isLoading,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     
                     // Contraseña

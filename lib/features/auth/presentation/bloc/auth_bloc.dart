@@ -81,6 +81,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         fullName: event.fullName,
         userType: event.userType,
         phone: event.phone,
+        latitude: event.latitude,
+        longitude: event.longitude,
       ),
     );
 
@@ -95,13 +97,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     SignOutEvent event,
     Emitter<AuthState> emit,
   ) async {
+    print('🔓 AuthBloc - Iniciando cierre de sesión...');
     emit(const AuthLoading());
 
     final result = await signOut();
 
     result.fold(
-      (failure) => emit(AuthError(message: failure.message)),
-      (_) => emit(const Unauthenticated()),
+      (failure) {
+        print('❌ AuthBloc - Error al cerrar sesión: ${failure.message}');
+        emit(AuthError(message: failure.message));
+      },
+      (_) {
+        print('✅ AuthBloc - Sesión cerrada correctamente');
+        emit(const Unauthenticated());
+      },
     );
   }
 

@@ -9,6 +9,8 @@ class User extends Equatable {
   final String? phone;
   final UserType userType;
   final String? avatarUrl;
+  final double? latitude;
+  final double? longitude;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +21,8 @@ class User extends Equatable {
     this.phone,
     required this.userType,
     this.avatarUrl,
+    this.latitude,
+    this.longitude,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -31,6 +35,8 @@ class User extends Equatable {
     String? phone,
     UserType? userType,
     String? avatarUrl,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -41,6 +47,8 @@ class User extends Equatable {
       phone: phone ?? this.phone,
       userType: userType ?? this.userType,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -66,6 +74,8 @@ class User extends Equatable {
         phone,
         userType,
         avatarUrl,
+        latitude,
+        longitude,
         createdAt,
         updatedAt,
       ];

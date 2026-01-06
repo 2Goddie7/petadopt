@@ -19,6 +19,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required String fullName,
     required UserType userType,
     String? phone,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final userModel = await remoteDataSource.signUp(
@@ -27,6 +29,8 @@ class AuthRepositoryImpl implements AuthRepository {
         fullName: fullName,
         userType: userType.toJson(),
         phone: phone,
+        latitude: latitude,
+        longitude: longitude,
       );
       return Right(userModel.toEntity());
     } on EmailAlreadyInUseException catch (e) {

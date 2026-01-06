@@ -228,15 +228,46 @@ class PetsRemoteDataSourceImpl implements PetsRemoteDataSource {
       final List<String> uploadedUrls = [];
 
       for (int i = 0; i < imagePaths.length; i++) {
+        final imagePath = imagePaths[i];
+        
+        // Detectar extensión del archivo
+        String fileExtension = imagePath.split('.').last.toLowerCase();
+        
+        // Normalizar JPG a JPEG
+        if (fileExtension == 'jpg') {
+          fileExtension = 'jpeg';
+        }
+        
+        // Validar formatos permitidos
+        final allowedFormats = ['jpeg', 'png', 'webp', 'gif'];
+        if (!allowedFormats.contains(fileExtension)) {
+          throw InvalidFileTypeException(
+            'Formato no soportado: .$fileExtension. Permitidos: ${allowedFormats.join(", ")}'
+          );
+        }
+
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final fileName = 'pet_${timestamp}_$i.jpg';
+        final fileName = 'pet_${timestamp}_$i.$fileExtension';
         final path = '$shelterId/$petId/$fileName';
 
-        final imageFile = File(imagePaths[i]);
+        // Leer archivo como bytes (compatible con Web)
+        final imageFile = File(imagePath);
+        final bytes = await imageFile.readAsBytes();
 
-        await supabase.storage
-            .from('pet-images')
-            .upload(path, imageFile);
+        // Determinar content type correcto
+        final contentType = fileExtension == 'jpeg' || fileExtension == 'jpg'
+            ? 'image/jpeg'
+            : 'image/$fileExtension';
+
+        // Subir usando uploadBinary con bytes
+        await supabase.storage.from('pet-images').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: contentType,
+            upsert: false,
+          ),
+        );
 
         final publicUrl = supabase.storage
             .from('pet-images')

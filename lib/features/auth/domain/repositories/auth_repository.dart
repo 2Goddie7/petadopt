@@ -12,6 +12,8 @@ abstract class AuthRepository {
     required String fullName,
     required UserType userType,
     String? phone,
+    double? latitude,
+    double? longitude,
   });
 
   /// Inicia sesión con email y contraseña

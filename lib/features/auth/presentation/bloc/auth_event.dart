@@ -35,6 +35,8 @@ class SignUpEvent extends AuthEvent {
   final String fullName;
   final UserType userType;
   final String? phone;
+  final double? latitude;
+  final double? longitude;
 
   const SignUpEvent({
     required this.email,
@@ -42,10 +44,12 @@ class SignUpEvent extends AuthEvent {
     required this.fullName,
     required this.userType,
     this.phone,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props => [email, password, fullName, userType, phone];
+  List<Object?> get props => [email, password, fullName, userType, phone, latitude, longitude];
 }
 
 /// Evento: Cerrar sesión

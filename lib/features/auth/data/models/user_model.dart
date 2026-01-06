@@ -10,19 +10,25 @@ class UserModel extends User {
     super.phone,
     required super.userType,
     super.avatarUrl,
+    super.latitude,
+    super.longitude,
     required super.createdAt,
     required super.updatedAt,
   });
 
   /// Crea un UserModel desde JSON (Supabase)
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    print('🔍 UserModel.fromJson - Raw JSON: $json');
+    
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
-      fullName: json['full_name'] as String,
+      fullName: json['full_name'] as String? ?? json['name'] as String? ?? '',
       phone: json['phone'] as String?,
-      userType: UserType.fromJson(json['user_type'] as String),
+      userType: UserType.fromJson(json['user_type'] as String? ?? json['role'] as String? ?? 'adopter'),
       avatarUrl: json['avatar_url'] as String?,
+      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -37,6 +43,8 @@ class UserModel extends User {
       'phone': phone,
       'user_type': userType.toJson(),
       'avatar_url': avatarUrl,
+      'latitude': latitude,
+      'longitude': longitude,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -51,6 +59,8 @@ class UserModel extends User {
       phone: user.phone,
       userType: user.userType,
       avatarUrl: user.avatarUrl,
+      latitude: user.latitude,
+      longitude: user.longitude,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     );
@@ -65,6 +75,8 @@ class UserModel extends User {
       phone: phone,
       userType: userType,
       avatarUrl: avatarUrl,
+      latitude: latitude,
+      longitude: longitude,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -79,6 +91,8 @@ class UserModel extends User {
     String? phone,
     UserType? userType,
     String? avatarUrl,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -89,6 +103,8 @@ class UserModel extends User {
       phone: phone ?? this.phone,
       userType: userType ?? this.userType,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -114,6 +130,8 @@ class UserModel extends User {
       'phone': phone,
       'user_type': userType.toJson(),
       'avatar_url': avatarUrl,
+      'latitude': latitude?.toString(),
+      'longitude': longitude?.toString(),
     };
   }
 
@@ -123,6 +141,8 @@ class UserModel extends User {
       'full_name': fullName,
       'phone': phone,
       'avatar_url': avatarUrl,
+      'latitude': latitude,
+      'longitude': longitude,
       'updated_at': DateTime.now().toIso8601String(),
     };
   }

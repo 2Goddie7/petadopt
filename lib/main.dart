@@ -12,6 +12,7 @@ import 'features/auth/presentation/pages/register_page.dart';
 import 'features/auth/presentation/pages/forgot_password_page.dart';
 import 'features/auth/presentation/pages/home_page.dart';
 import 'features/pets/presentation/pages/pets_list_page.dart';
+import 'features/pets/presentation/pages/create_pet_page.dart';
 import 'features/profile/presentation/pages/profile_page.dart';
 import 'features/pets/presentation/bloc/pets_bloc.dart';
 import 'features/pets/presentation/bloc/pets_event.dart';
@@ -209,6 +210,7 @@ class _MyAppState extends State<MyApp> {
           '/home': (context) => const HomePage(),
           '/profile': (context) => const ProfilePage(),
           '/pets': (context) => const PetsListPage(),
+          '/create-pet': (context) => const CreatePetPage(),
         },
       ),
     );

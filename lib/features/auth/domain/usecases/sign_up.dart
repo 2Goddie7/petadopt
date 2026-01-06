@@ -18,6 +18,8 @@ class SignUp extends UseCaseWithParams<User, SignUpParams> {
       fullName: params.fullName,
       userType: params.userType,
       phone: params.phone,
+      latitude: params.latitude,
+      longitude: params.longitude,
     );
   }
 }
@@ -28,6 +30,8 @@ class SignUpParams extends Equatable {
   final String fullName;
   final UserType userType;
   final String? phone;
+  final double? latitude;
+  final double? longitude;
 
   const SignUpParams({
     required this.email,
@@ -35,8 +39,10 @@ class SignUpParams extends Equatable {
     required this.fullName,
     required this.userType,
     this.phone,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props => [email, password, fullName, userType, phone];
+  List<Object?> get props => [email, password, fullName, userType, phone, latitude, longitude];
 }
