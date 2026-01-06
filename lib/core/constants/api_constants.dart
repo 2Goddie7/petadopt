@@ -53,7 +53,8 @@ class ApiConstants {
   static String get geminiApiKey => dotenv.env['GEMINI_API_KEY']!;
   
   /// Modelo de Gemini a usar
-  static const String geminiModel = 'gemini-pro';
+  /// Actualizado a gemini-1.5-flash (más rápido y eficiente)
+  static const String geminiModel = 'gemini-1.5-flash';
   
   /// Endpoint base de Gemini
   static const String geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta';

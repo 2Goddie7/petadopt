@@ -27,6 +27,7 @@ import '../../features/pets/domain/usecases/search_pets.dart';
 import '../../features/pets/domain/usecases/upload_pet_images.dart';
 import '../../features/pets/domain/usecases/increment_views.dart';
 import '../../features/pets/domain/usecases/update_adoption_status.dart';
+import '../../features/pets/domain/usecases/get_current_shelter.dart';
 
 // Features - Adoptions
 import '../../features/adoptions/data/datasources/adoptions_remote_data_source.dart';
@@ -69,6 +70,14 @@ import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/domain/usecases/get_profile.dart';
 import '../../features/profile/domain/usecases/update_profile.dart';
 import '../../features/profile/domain/usecases/upload_profile_image.dart';
+
+// Features - Favorites
+import '../../features/favorites/data/datasources/favorites_remote_data_source.dart';
+import '../../features/favorites/data/repositories/favorites_repository_impl.dart';
+import '../../features/favorites/domain/repositories/favorites_repository.dart';
+import '../../features/favorites/domain/usecases/get_favorite_pets.dart';
+import '../../features/favorites/domain/usecases/is_favorite.dart';
+import '../../features/favorites/domain/usecases/toggle_favorite.dart';
 
 final sl = GetIt.instance;
 
@@ -120,6 +129,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => UploadPetImages(sl()));
   sl.registerLazySingleton(() => IncrementPetViews(sl()));
   sl.registerLazySingleton(() => UpdateAdoptionStatus(sl()));
+  sl.registerLazySingleton(() => GetCurrentShelter(sl()));
   
   // Repository
   sl.registerLazySingleton<PetsRepository>(
@@ -215,5 +225,24 @@ Future<void> init() async {
   // Data Source
   sl.registerLazySingleton<ProfileRemoteDataSource>(
     () => ProfileRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // ============================================
+  // FEATURES - FAVORITES ⭐ NUEVO
+  // ============================================
+  
+  // Use Cases
+  sl.registerLazySingleton(() => GetFavoritePets(sl()));
+  sl.registerLazySingleton(() => IsFavorite(sl()));
+  sl.registerLazySingleton(() => ToggleFavorite(sl()));
+  
+  // Repository
+  sl.registerLazySingleton<FavoritesRepository>(
+    () => FavoritesRepositoryImpl(remoteDataSource: sl()),
+  );
+  
+  // Data Source
+  sl.registerLazySingleton<FavoritesRemoteDataSource>(
+    () => FavoritesRemoteDataSourceImpl(supabaseClient: sl()),
   );
 }

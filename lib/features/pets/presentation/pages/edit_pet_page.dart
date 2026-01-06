@@ -5,9 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get_it/get_it.dart';
 import 'dart:io';
 import '../../domain/entities/pet.dart';
-import '../bloc/pet_form_bloc.dart';
-import '../bloc/pet_form_event.dart';
-import '../bloc/pet_form_state.dart';
+import 'package:petadopt/features/pets/presentation/bloc/pet_form_bloc.dart';
+import 'package:petadopt/features/pets/presentation/bloc/pet_form_event.dart';
+import 'package:petadopt/features/pets/presentation/bloc/pet_form_state.dart';
 
 class EditPetPage extends StatefulWidget {
   final Pet pet;

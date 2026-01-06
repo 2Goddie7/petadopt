@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../bloc/pet_detail_bloc.dart';
 import '../bloc/pet_detail_event.dart';
 import '../bloc/pet_detail_state.dart';
 import '../../domain/entities/pet.dart';
+import '../../../favorites/presentation/bloc/favorites_bloc.dart';
+import '../../../favorites/presentation/bloc/favorites_event.dart';
+import '../../../favorites/presentation/bloc/favorites_state.dart';
 import 'package:get_it/get_it.dart';
 
 class PetDetailPage extends StatefulWidget {
@@ -27,6 +31,14 @@ class _PetDetailPageState extends State<PetDetailPage> {
       incrementViews: GetIt.instance(),
     );
     _petDetailBloc.add(LoadPetDetailEvent(petId: widget.petId));
+    
+    // Check if pet is favorite
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null) {
+      context.read<FavoritesBloc>().add(
+            CheckIsFavoriteEvent(userId: userId, petId: widget.petId),
+          );
+    }
   }
 
   @override
@@ -95,6 +107,7 @@ class _PetDetailPageState extends State<PetDetailPage> {
   Widget _buildPetDetail(BuildContext context, Pet pet) {
     final imageUrl = pet.mainImageUrl.isNotEmpty ? pet.mainImageUrl : '';
     final hasGallery = pet.imagesUrls.isNotEmpty;
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return CustomScrollView(
       slivers: [
@@ -121,10 +134,38 @@ class _PetDetailPageState extends State<PetDetailPage> {
                   ),
           ),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.favorite_border),
-              onPressed: () {
-                // TODO: Agregar a favoritos
+            BlocBuilder<FavoritesBloc, FavoritesState>(
+              builder: (context, state) {
+                bool isFavorite = false;
+                
+                if (state is FavoritesLoaded) {
+                  isFavorite = state.favoriteStatus[pet.id] ?? false;
+                } else if (state is FavoriteToggled && state.petId == pet.id) {
+                  isFavorite = state.isFavorite;
+                }
+
+                return IconButton(
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : null,
+                  ),
+                  onPressed: () {
+                    if (userId.isNotEmpty) {
+                      context.read<FavoritesBloc>().add(
+                            ToggleFavoriteEvent(
+                              userId: userId,
+                              petId: pet.id,
+                            ),
+                          );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Debes iniciar sesión para agregar favoritos'),
+                        ),
+                      );
+                    }
+                  },
+                );
               },
             ),
             IconButton(

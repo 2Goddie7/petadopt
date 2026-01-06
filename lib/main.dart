@@ -19,6 +19,7 @@ import 'features/adoptions/presentation/bloc/adoptions_bloc.dart';
 import 'features/ai_chat/presentation/bloc/chat_bloc.dart';
 import 'features/map/presentation/bloc/map_bloc.dart';
 import 'features/profile/presentation/bloc/profile_bloc.dart';
+import 'features/favorites/presentation/bloc/favorites_bloc.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:async';
 
@@ -184,6 +185,14 @@ class _MyAppState extends State<MyApp> {
             getProfile: di.sl(),
             updateProfile: di.sl(),
             uploadProfileImage: di.sl(),
+            getCurrentUser: di.sl(),
+          ),
+        ),
+        BlocProvider(
+          create: (context) => FavoritesBloc(
+            getFavoritePets: di.sl(),
+            isFavorite: di.sl(),
+            toggleFavorite: di.sl(),
           ),
         ),
       ],

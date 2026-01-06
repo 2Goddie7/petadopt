@@ -18,7 +18,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
 
   ChatRemoteDataSourceImpl({required this.supabase}) {
     geminiModel = gemini.GenerativeModel(
-      model: 'gemini-pro',
+      model: 'gemini-2.5-flash-lite',
       apiKey: ApiConstants.geminiApiKey,
     );
   }

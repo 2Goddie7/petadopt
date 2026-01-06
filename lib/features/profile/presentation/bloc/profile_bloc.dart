@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/get_profile.dart';
 import '../../domain/usecases/update_profile.dart';
 import '../../domain/usecases/upload_profile_image.dart';
+import '../../../auth/domain/usecases/get_current_user.dart';
 import 'profile_event.dart';
 import 'profile_state.dart';
 
@@ -9,6 +10,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final GetProfile getProfile;
   final UpdateProfile updateProfile;
   final UploadProfileImage uploadProfileImage;
+  final GetCurrentUser getCurrentUser;
 
   String? _currentUserId;
 
@@ -16,6 +18,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     required this.getProfile,
     required this.updateProfile,
     required this.uploadProfileImage,
+    required this.getCurrentUser,
   }) : super(ProfileInitial()) {
     on<LoadProfileEvent>(_onLoadProfile);
     on<UpdateProfileEvent>(_onUpdateProfile);
@@ -93,7 +96,27 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
             : null;
 
     if (currentProfile == null) {
-      emit(const ProfileError(message: 'No hay perfil cargado'));
+      // Intentar cargar el perfil del usuario autenticado
+      final userResult = await getCurrentUser();
+      
+      await userResult.fold(
+        (failure) async {
+          emit(const ProfileError(message: 'No se pudo obtener el usuario autenticado'));
+        },
+        (user) async {
+          if (user == null) {
+            emit(const ProfileError(message: 'Usuario no autenticado'));
+            return;
+          }
+          
+          // Cargar el perfil
+          add(LoadProfileEvent(userId: user.id));
+          
+          // Esperar un momento y reintentar el upload
+          await Future.delayed(const Duration(milliseconds: 500));
+          add(UploadProfileImageEvent(imageFile: event.imageFile));
+        },
+      );
       return;
     }
 
