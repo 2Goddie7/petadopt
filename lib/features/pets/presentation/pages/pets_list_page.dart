@@ -34,10 +34,17 @@ class _PetsListPageState extends State<PetsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Obtener el tipo de usuario para cambiar el título
+    final authState = context.watch<AuthBloc>().state;
+    final isShelter = authState is Authenticated &&
+        authState.user.userType == UserType.shelter;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('🐾 Encuentra tu compañero'),
+        title: Text(isShelter
+            ? '🏠 Gestiona tus mascotas'
+            : '🐾 Encuentra tu compañero'),
         elevation: 0,
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -167,12 +174,12 @@ class _PetsListPageState extends State<PetsListPage> {
               },
               color: AppColors.primary,
               child: GridView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.78,
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
                 ),
                 itemCount: pets.length,
                 itemBuilder: (context, index) {
@@ -194,12 +201,16 @@ class _PetsListPageState extends State<PetsListPage> {
           if (authState.user.userType != UserType.shelter)
             return const SizedBox();
 
-          return FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.pushNamed(context, '/create-pet');
+          return FloatingActionButton(
+            onPressed: () async {
+              final result = await Navigator.pushNamed(context, '/create-pet');
+              if (result == true) {
+                if (context.mounted) {
+                  context.read<PetsBloc>().add(LoadPetsEvent());
+                }
+              }
             },
-            icon: const Icon(Icons.add),
-            label: const Text('Agregar'),
+            child: const Icon(Icons.add),
             backgroundColor: AppColors.primary,
             elevation: 4,
           );
@@ -334,7 +345,7 @@ class _PetCard extends StatelessWidget {
               // Imagen de fondo
               Positioned.fill(
                 child: CachedNetworkImage(
-                  imageUrl: pet.mainImageUrl,
+                  imageUrl: pet.petImages.isNotEmpty ? pet.petImages.first : '',
                   fit: BoxFit.cover,
                   placeholder: (context, url) => Container(
                     decoration: BoxDecoration(
@@ -347,7 +358,8 @@ class _PetCard extends StatelessWidget {
                     ),
                     child: const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.primary),
                       ),
                     ),
                   ),
@@ -360,7 +372,8 @@ class _PetCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    child: const Icon(Icons.pets, size: 48, color: AppColors.primary),
+                    child: const Icon(Icons.pets,
+                        size: 48, color: AppColors.primary),
                   ),
                 ),
               ),
@@ -426,7 +439,9 @@ class _PetCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              pet.shelterCity ?? 'Ubicación no disponible',
+                              pet.shelterAddress ??
+                                  pet.shelterCity ??
+                                  'Ubicación no disponible',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.white,
@@ -447,53 +462,64 @@ class _PetCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // Badge de estado
-              Positioned(
-                top: 12,
-                right: 12,
-                child: AnimatedBadge(
-                  text: pet.adoptionStatus == AdoptionStatus.available
-                      ? 'Disponible'
-                      : 'Adoptado',
-                  backgroundColor: pet.adoptionStatus == AdoptionStatus.available
-                      ? AppColors.success
-                      : AppColors.textSecondary,
-                  icon: pet.adoptionStatus == AdoptionStatus.available
-                      ? Icons.pets
-                      : Icons.check_circle,
-                ),
-              ),
-              // Badge de género
+              // Badges (Estado y Género)
               Positioned(
                 top: 12,
                 left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: pet.gender == PetGender.male
-                        ? Colors.blue.withOpacity(0.9)
-                        : Colors.pink.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        pet.gender == PetGender.male ? Icons.male : Icons.female,
-                        size: 14,
-                        color: Colors.white,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedBadge(
+                      text: pet.adoptionStatus == AdoptionStatus.available
+                          ? 'Disponible'
+                          : pet.adoptionStatus == AdoptionStatus.pending
+                              ? 'Solicitado'
+                              : 'Adoptado',
+                      backgroundColor:
+                          pet.adoptionStatus == AdoptionStatus.available
+                              ? AppColors.success
+                              : pet.adoptionStatus == AdoptionStatus.pending
+                                  ? Colors.orange
+                                  : AppColors.textSecondary,
+                      icon: pet.adoptionStatus == AdoptionStatus.available
+                          ? Icons.pets
+                          : pet.adoptionStatus == AdoptionStatus.pending
+                              ? Icons.hourglass_top
+                              : Icons.check_circle,
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: pet.gender == PetGender.male
+                            ? Colors.blue.withOpacity(0.9)
+                            : Colors.pink.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        pet.gender == PetGender.male ? 'Macho' : 'Hembra',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            pet.gender == PetGender.male
+                                ? Icons.male
+                                : Icons.female,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            pet.gender == PetGender.male ? 'Macho' : 'Hembra',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],

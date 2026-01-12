@@ -11,6 +11,8 @@ class UserProfileModel extends UserProfile {
     super.avatarUrl,
     super.bio,
     super.location,
+    super.latitude,
+    super.longitude,
     required super.createdAt,
     required super.updatedAt,
   });
@@ -26,6 +28,12 @@ class UserProfileModel extends UserProfile {
       avatarUrl: json['avatar_url'] as String?,
       bio: json['bio'] as String?,
       location: json['location'] as String?,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] as num).toDouble()
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] as num).toDouble()
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -90,6 +98,8 @@ class UserProfileModel extends UserProfile {
     String? avatarUrl,
     String? bio,
     String? location,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -102,6 +112,8 @@ class UserProfileModel extends UserProfile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       bio: bio ?? this.bio,
       location: location ?? this.location,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

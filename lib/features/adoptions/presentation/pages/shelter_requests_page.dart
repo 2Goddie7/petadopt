@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import '../bloc/adoptions_bloc.dart';
 import '../bloc/adoptions_event.dart';
 import '../bloc/adoptions_state.dart';
@@ -8,6 +9,7 @@ import '../widgets/adoption_request_card.dart';
 import '../widgets/request_action_buttons.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../../pets/domain/usecases/get_current_shelter.dart';
 
 class ShelterRequestsPage extends StatefulWidget {
   const ShelterRequestsPage({super.key});
@@ -18,6 +20,7 @@ class ShelterRequestsPage extends StatefulWidget {
 
 class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
   RequestStatus? _selectedFilter;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -25,13 +28,37 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
     _loadRequests();
   }
 
-  void _loadRequests() {
+  Future<void> _loadRequests() async {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
-      // Asumiendo que el shelterId está en user.id o user metadata
-      context.read<AdoptionsBloc>().add(
-            LoadShelterRequestsEvent(shelterId: authState.user.id),
-          );
+      final getShelter = GetIt.instance<GetCurrentShelter>();
+      final result = await getShelter();
+
+      result.fold(
+        (failure) {
+          setState(() {
+            _errorMessage = failure.message;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(failure.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        (shelterId) {
+          setState(() {
+            _errorMessage = null;
+          });
+          if (mounted) {
+            context.read<AdoptionsBloc>().add(
+                  LoadShelterRequestsEvent(shelterId: shelterId),
+                );
+          }
+        },
+      );
     }
   }
 
@@ -71,78 +98,117 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
           ),
         ],
       ),
-      body: BlocConsumer<AdoptionsBloc, AdoptionsState>(
-        listener: (context, state) {
-          if (state is AdoptionsError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          
-          if (state is AdoptionUpdated) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.message)),
-            );
-            _loadRequests(); // Recargar después de actualización
-          }
-        },
-        builder: (context, state) {
-          if (state is AdoptionsLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is AdoptionsLoaded) {
-            final filteredRequests = _selectedFilter == null
-                ? state.requests
-                : state.requests.where((r) => r.status == _selectedFilter).toList();
-
-            if (filteredRequests.isEmpty) {
-              return Center(
+      body: _errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.inbox, size: 80, color: Colors.grey[300]),
+                    Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
                     const SizedBox(height: 16),
                     Text(
-                      _selectedFilter == null
-                          ? 'No hay solicitudes'
-                          : 'No hay solicitudes con este filtro',
+                      'Error al cargar solicitudes',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.grey[600],
                           ),
                     ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadRequests,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reintentar'),
+                    ),
                   ],
                 ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: () async => _loadRequests(),
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: filteredRequests.length,
-                itemBuilder: (context, index) {
-                  final request = filteredRequests[index];
-                  return AdoptionRequestCard(
-                    request: request,
-                    onTap: () => _showRequestDetails(context, request),
-                    trailing: RequestActionButtons(
-                      request: request,
-                      onApprove: () => _showApproveDialog(context, request),
-                      onReject: () => _showRejectDialog(context, request),
+              ),
+            )
+          : BlocConsumer<AdoptionsBloc, AdoptionsState>(
+              listener: (context, state) {
+                if (state is AdoptionsError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(state.message),
+                      backgroundColor: Colors.red,
                     ),
                   );
-                },
-              ),
-            );
-          }
+                }
 
-          return const SizedBox();
-        },
-      ),
+                if (state is AdoptionUpdated) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(state.message)),
+                  );
+                  _loadRequests(); // Recargar después de actualización
+                }
+              },
+              builder: (context, state) {
+                if (state is AdoptionsLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (state is AdoptionsLoaded) {
+                  final filteredRequests = _selectedFilter == null
+                      ? state.requests
+                      : state.requests
+                          .where((r) => r.status == _selectedFilter)
+                          .toList();
+
+                  if (filteredRequests.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inbox, size: 80, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            _selectedFilter == null
+                                ? 'No hay solicitudes'
+                                : 'No hay solicitudes con este filtro',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async => _loadRequests(),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      itemCount: filteredRequests.length,
+                      itemBuilder: (context, index) {
+                        final request = filteredRequests[index];
+                        return AdoptionRequestCard(
+                          request: request,
+                          onTap: () => _showRequestDetails(context, request),
+                          trailing: RequestActionButtons(
+                            request: request,
+                            onApprove: () =>
+                                _showApproveDialog(context, request),
+                            onReject: () => _showRejectDialog(context, request),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }
+
+                return const SizedBox();
+              },
+            ),
     );
   }
 
@@ -175,7 +241,6 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              
               Text(
                 'Detalles de Solicitud',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -183,7 +248,6 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
                     ),
               ),
               const SizedBox(height: 16),
-              
               _DetailRow(
                 label: 'Adoptante:',
                 value: request.adopterName ?? 'N/A',
@@ -209,7 +273,6 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
                 label: 'Fecha:',
                 value: _formatFullDate(request.createdAt),
               ),
-              
               if (request.message != null && request.message!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -229,7 +292,6 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
                   child: Text(request.message!),
                 ),
               ],
-
               if (request.status == RequestStatus.pending) ...[
                 const SizedBox(height: 24),
                 Row(
@@ -290,10 +352,16 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
           ),
           TextButton(
             onPressed: () {
+              // Capturamos el bloc ANTES de cerrar el diálogo
+              final adoptionsBloc = context.read<AdoptionsBloc>();
+              // Usar Navigator.of(context) en lugar de dialogContext si es más seguro
               Navigator.pop(dialogContext);
-              context.read<AdoptionsBloc>().add(
-                    ApproveRequestEvent(requestId: request.id),
-                  );
+
+              if (context.mounted) {
+                adoptionsBloc.add(
+                  ApproveRequestEvent(requestId: request.id),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.green),
             child: const Text('Aprobar'),
@@ -336,13 +404,20 @@ class _ShelterRequestsPageState extends State<ShelterRequestsPage> {
           ),
           TextButton(
             onPressed: () {
+              // Capturamos el bloc ANTES de cerrar el diálogo
+              final adoptionsBloc = context.read<AdoptionsBloc>();
+              final reason = reasonController.text.trim();
+
               Navigator.pop(dialogContext);
-              context.read<AdoptionsBloc>().add(
-                    RejectRequestEvent(
-                      requestId: request.id,
-                      reason: reasonController.text.trim(),
-                    ),
-                  );
+
+              if (context.mounted) {
+                adoptionsBloc.add(
+                  RejectRequestEvent(
+                    requestId: request.id,
+                    reason: reason,
+                  ),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Rechazar'),

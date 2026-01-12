@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import '../../domain/entities/user_profile.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
+import '../../../../core/utils/location_helper.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserProfile profile;
@@ -23,9 +24,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController _phoneController;
   late final TextEditingController _bioController;
   late final TextEditingController _locationController;
+  late final TextEditingController _latitudeController;
+  late final TextEditingController _longitudeController;
 
   XFile? _selectedImage;
+  Uint8List? _selectedImageBytes; // Cache para bytes de la imagen
   final ImagePicker _picker = ImagePicker();
+  bool _isLoadingLocation = false;
 
   @override
   void initState() {
@@ -35,6 +40,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _bioController = TextEditingController(text: widget.profile.bio ?? '');
     _locationController =
         TextEditingController(text: widget.profile.location ?? '');
+    _latitudeController = TextEditingController(
+        text: widget.profile.latitude != null
+            ? widget.profile.latitude!.toStringAsFixed(6)
+            : '');
+    _longitudeController = TextEditingController(
+        text: widget.profile.longitude != null
+            ? widget.profile.longitude!.toStringAsFixed(6)
+            : '');
   }
 
   @override
@@ -43,6 +56,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _phoneController.dispose();
     _bioController.dispose();
     _locationController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -54,8 +69,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
 
       if (image != null) {
+        // Pre-cargar los bytes en caché
+        final bytes = await image.readAsBytes();
         setState(() {
           _selectedImage = image;
+          _selectedImageBytes = bytes;
         });
       }
     } catch (e) {
@@ -67,15 +85,72 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      final position = await LocationHelper.getCurrentLocation();
+
+      if (position != null) {
+        setState(() {
+          _latitudeController.text = position.latitude.toStringAsFixed(6);
+          _longitudeController.text = position.longitude.toStringAsFixed(6);
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✓ Ubicación obtenida correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudo obtener la ubicación'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isLoadingLocation = false);
+    }
+  }
+
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
       // Upload image first if selected
       if (_selectedImage != null) {
         context.read<ProfileBloc>().add(
               UploadProfileImageEvent(
-                imageFile: File(_selectedImage!.path),
+                imageFile: _selectedImage!,
               ),
             );
+      }
+
+      // Parsear coordenadas si están presentes (solo para shelters)
+      double? latitude;
+      double? longitude;
+
+      if (_latitudeController.text.trim().isNotEmpty) {
+        latitude = double.tryParse(_latitudeController.text.trim());
+      }
+
+      if (_longitudeController.text.trim().isNotEmpty) {
+        longitude = double.tryParse(_longitudeController.text.trim());
       }
 
       // Update profile
@@ -89,6 +164,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
               location: _locationController.text.trim().isEmpty
                   ? null
                   : _locationController.text.trim(),
+              latitude: latitude,
+              longitude: longitude,
             ),
           );
     }
@@ -136,15 +213,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           children: [
                             CircleAvatar(
                               radius: 60,
-                              backgroundImage: _selectedImage != null
-                                  ? FileImage(File(_selectedImage!.path))
+                              backgroundImage: _selectedImageBytes != null
+                                  ? MemoryImage(_selectedImageBytes!)
                                       as ImageProvider
                                   : widget.profile.avatarUrl != null
                                       ? CachedNetworkImageProvider(
                                               widget.profile.avatarUrl!)
                                           as ImageProvider
                                       : null,
-                              child: _selectedImage == null &&
+                              child: _selectedImageBytes == null &&
                                       widget.profile.avatarUrl == null
                                   ? const Icon(Icons.person, size: 60)
                                   : null,
@@ -213,6 +290,141 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Geolocalización solo para refugios
+                      if (widget.profile.userType == UserType.shelter) ...[
+                        Card(
+                          color: Colors.orange.shade50,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.place,
+                                        color: Colors.orange.shade700),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Ubicación en mapa',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Actualiza tu ubicación para que las personas puedan encontrar tu refugio en el mapa.',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _latitudeController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Latitud',
+                                          border: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Colors.grey.shade400),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Colors.grey.shade300),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.grey.shade50,
+                                          prefixIcon: Icon(Icons.place,
+                                              color: Colors.grey.shade600),
+                                          isDense: true,
+                                        ),
+                                        style: TextStyle(
+                                            color: Colors.grey.shade700),
+                                        keyboardType: const TextInputType
+                                            .numberWithOptions(
+                                          decimal: true,
+                                          signed: true,
+                                        ),
+                                        readOnly: true,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _longitudeController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Longitud',
+                                          border: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Colors.grey.shade400),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(
+                                                color: Colors.grey.shade300),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.grey.shade50,
+                                          prefixIcon: Icon(Icons.explore,
+                                              color: Colors.grey.shade600),
+                                          isDense: true,
+                                        ),
+                                        style: TextStyle(
+                                            color: Colors.grey.shade700),
+                                        keyboardType: const TextInputType
+                                            .numberWithOptions(
+                                          decimal: true,
+                                          signed: true,
+                                        ),
+                                        readOnly: true,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isLoadingLocation
+                                        ? null
+                                        : _getCurrentLocation,
+                                    icon: _isLoadingLocation
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Colors.white),
+                                            ),
+                                          )
+                                        : const Icon(Icons.my_location),
+                                    label: Text(
+                                      _isLoadingLocation
+                                          ? 'Obteniendo ubicación...'
+                                          : 'Obtener ubicación GPS',
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       // Bio
                       TextFormField(

@@ -7,7 +7,7 @@ class User extends Equatable {
   final String email;
   final String fullName;
   final String? phone;
-  final UserType userType;
+  final UserType? userType;
   final String? avatarUrl;
   final double? latitude;
   final double? longitude;
@@ -19,7 +19,7 @@ class User extends Equatable {
     required this.email,
     required this.fullName,
     this.phone,
-    required this.userType,
+    this.userType,
     this.avatarUrl,
     this.latitude,
     this.longitude,

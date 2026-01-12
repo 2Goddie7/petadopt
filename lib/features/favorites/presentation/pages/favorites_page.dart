@@ -20,7 +20,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   void initState() {
     super.initState();
-    context.read<FavoritesBloc>().add(LoadFavoritesEvent(userId: widget.userId));
+    context
+        .read<FavoritesBloc>()
+        .add(LoadFavoritesEvent(userId: widget.userId));
   }
 
   @override
@@ -35,7 +37,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: state.isFavorite ? Colors.green : Colors.orange,
+                backgroundColor:
+                    state.isFavorite ? Colors.green : Colors.orange,
                 duration: const Duration(seconds: 1),
               ),
             );
@@ -81,7 +84,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.favorite_border, size: 100, color: Colors.grey[300]),
+                    Icon(Icons.favorite_border,
+                        size: 100, color: Colors.grey[300]),
                     const SizedBox(height: 16),
                     Text(
                       'No tienes favoritos',
@@ -146,9 +150,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  pet.mainImageUrl.isNotEmpty
+                  pet.petImages.isNotEmpty
                       ? CachedNetworkImage(
-                          imageUrl: pet.mainImageUrl,
+                          imageUrl: pet.petImages.first,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
                             color: Colors.grey[300],
@@ -173,7 +177,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       backgroundColor: Colors.white,
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.favorite, color: Colors.red, size: 20),
+                        icon: const Icon(Icons.favorite,
+                            color: Colors.red, size: 20),
                         onPressed: () {
                           context.read<FavoritesBloc>().add(
                                 ToggleFavoriteEvent(
@@ -219,7 +224,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     const Spacer(),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                        Icon(Icons.location_on,
+                            size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(

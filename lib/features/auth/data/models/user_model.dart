@@ -19,16 +19,24 @@ class UserModel extends User {
   /// Crea un UserModel desde JSON (Supabase)
   factory UserModel.fromJson(Map<String, dynamic> json) {
     print('🔍 UserModel.fromJson - Raw JSON: $json');
-    
+
     return UserModel(
       id: json['id'] as String,
       email: json['email'] as String,
       fullName: json['full_name'] as String? ?? json['name'] as String? ?? '',
       phone: json['phone'] as String?,
-      userType: UserType.fromJson(json['user_type'] as String? ?? json['role'] as String? ?? 'adopter'),
+      // Fix: Permitir userType nulo para flujo de registro OAuth
+      userType: (json['user_type'] != null || json['role'] != null)
+          ? UserType.fromJson(
+              json['user_type'] as String? ?? json['role'] as String? ?? 'adopter')
+          : null,
       avatarUrl: json['avatar_url'] as String?,
-      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
-      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] as num).toDouble()
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] as num).toDouble()
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -41,7 +49,7 @@ class UserModel extends User {
       'email': email,
       'full_name': fullName,
       'phone': phone,
-      'user_type': userType.toJson(),
+      'user_type': userType?.toJson(),
       'avatar_url': avatarUrl,
       'latitude': latitude,
       'longitude': longitude,
@@ -128,7 +136,7 @@ class UserModel extends User {
       'email': email,
       'full_name': fullName,
       'phone': phone,
-      'user_type': userType.toJson(),
+      'user_type': userType?.toJson(),
       'avatar_url': avatarUrl,
       'latitude': latitude?.toString(),
       'longitude': longitude?.toString(),

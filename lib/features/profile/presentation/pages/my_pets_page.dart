@@ -16,6 +16,8 @@ class MyPetsPage extends StatefulWidget {
 }
 
 class _MyPetsPageState extends State<MyPetsPage> {
+  AdoptionStatus? _selectedStatusFilter;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +49,33 @@ class _MyPetsPageState extends State<MyPetsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Mascotas'),
+        actions: [
+          PopupMenuButton<AdoptionStatus?>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filtrar por estado',
+            onSelected: (value) {
+              setState(() => _selectedStatusFilter = value);
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: null,
+                child: Text('Todos los estados'),
+              ),
+              const PopupMenuItem(
+                value: AdoptionStatus.available,
+                child: Text('Disponibles'),
+              ),
+              const PopupMenuItem(
+                value: AdoptionStatus.pending,
+                child: Text('En proceso'),
+              ),
+              const PopupMenuItem(
+                value: AdoptionStatus.adopted,
+                child: Text('Adoptados'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: BlocBuilder<PetsBloc, PetsState>(
         builder: (context, state) {
@@ -75,7 +104,14 @@ class _MyPetsPageState extends State<MyPetsPage> {
           }
 
           if (state is PetsLoaded) {
-            if (state.pets.isEmpty) {
+            // Aplicar filtro de estado si está seleccionado
+            final filteredPets = _selectedStatusFilter == null
+                ? state.pets
+                : state.pets
+                    .where((pet) => pet.adoptionStatus == _selectedStatusFilter)
+                    .toList();
+
+            if (filteredPets.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -83,15 +119,18 @@ class _MyPetsPageState extends State<MyPetsPage> {
                     Icon(Icons.pets, size: 100, color: Colors.grey[300]),
                     const SizedBox(height: 16),
                     Text(
-                      'No tienes mascotas registradas',
+                      _selectedStatusFilter == null
+                          ? 'No tienes mascotas registradas'
+                          : 'No hay mascotas con este estado',
                       style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _navigateToCreatePet,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Agregar Primera Mascota'),
-                    ),
+                    if (_selectedStatusFilter == null)
+                      ElevatedButton.icon(
+                        onPressed: _navigateToCreatePet,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Agregar Primera Mascota'),
+                      ),
                   ],
                 ),
               );
@@ -99,9 +138,9 @@ class _MyPetsPageState extends State<MyPetsPage> {
 
             return ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: state.pets.length,
+              itemCount: filteredPets.length,
               itemBuilder: (context, index) {
-                final pet = state.pets[index];
+                final pet = filteredPets[index];
                 return _buildPetCard(context, pet);
               },
             );
@@ -129,9 +168,9 @@ class _MyPetsPageState extends State<MyPetsPage> {
               // Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: pet.mainImageUrl.isNotEmpty
+                child: pet.petImages.isNotEmpty
                     ? CachedNetworkImage(
-                        imageUrl: pet.mainImageUrl,
+                        imageUrl: pet.petImages.first,
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,

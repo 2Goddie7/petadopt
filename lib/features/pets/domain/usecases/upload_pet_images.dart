@@ -8,13 +8,15 @@ import '../../../../core/usecases/usecase.dart';
 // UPLOAD PET IMAGES
 // ============================================
 
-class UploadPetImages extends UseCaseWithParams<List<String>, UploadPetImagesParams> {
+class UploadPetImages
+    extends UseCaseWithParams<List<String>, UploadPetImagesParams> {
   final PetsRepository repository;
 
   UploadPetImages(this.repository);
 
   @override
-  Future<Either<Failure, List<String>>> call(UploadPetImagesParams params) async {
+  Future<Either<Failure, List<String>>> call(
+      UploadPetImagesParams params) async {
     return await repository.uploadPetImages(
       params.shelterId,
       params.petId,
@@ -26,7 +28,7 @@ class UploadPetImages extends UseCaseWithParams<List<String>, UploadPetImagesPar
 class UploadPetImagesParams extends Equatable {
   final String shelterId;
   final String petId;
-  final List<String> imagePaths;
+  final List<dynamic> imagePaths; // Puede ser List<String> o List<XFile>
 
   const UploadPetImagesParams({
     required this.shelterId,

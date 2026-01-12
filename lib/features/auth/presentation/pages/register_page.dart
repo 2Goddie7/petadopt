@@ -134,10 +134,21 @@ class _RegisterPageState extends State<RegisterPage> {
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 4),
                 ),
               );
-            } else if (state is Authenticated) {
-              Navigator.of(context).pushReplacementNamed('/home');
+            } else if (state is AuthRegistered) {
+              // Mostrar mensaje de éxito y volver al login
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      '✓ Cuenta creada exitosamente. Por favor verifica tu email para activar tu cuenta.'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+              // Volver al login en lugar de ir directo al home
+              Navigator.of(context).pushReplacementNamed('/login');
             }
           },
           builder: (context, state) {

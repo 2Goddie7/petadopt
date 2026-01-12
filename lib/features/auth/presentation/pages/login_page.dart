@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import 'select_role_page.dart';
 import '../../../../shared/widgets/custom_button.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../core/utils/validators.dart';
@@ -38,7 +39,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleGoogleSignIn() {
-    context.read<AuthBloc>().add(const SignInWithGoogleEvent());
+    // Remove focus from text fields to avoid accidental form submissions
+    FocusScope.of(context).unfocus();
+
+    // Slight debounce to avoid event propagation triggering other handlers
+    Future.delayed(const Duration(milliseconds: 120), () {
+      if (!mounted) return;
+      context.read<AuthBloc>().add(const SignInWithGoogleEvent());
+    });
   }
 
   @override
@@ -52,6 +60,35 @@ class _LoginPageState extends State<LoginPage> {
                 SnackBar(
                   content: Text(state.message),
                   backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 5),
+                  action: SnackBarAction(
+                    label: 'Ver guía',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '📱 Configura los Redirect URIs en Supabase:\n'
+                            '1. Ve a supabase.com\n'
+                            '2. Authentication → Providers → Google\n'
+                            '3. Añade: petadopt://callback (móvil)\n'
+                            '4. Guarda cambios',
+                          ),
+                          duration: Duration(seconds: 8),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            } else if (state is OAuthRoleSelectionNeeded) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => SelectRolePage(
+                    userId: state.userId,
+                    email: state.email,
+                    fullName: state.fullName,
+                  ),
                 ),
               );
             } else if (state is Authenticated) {
@@ -77,9 +114,10 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 24),
                     Text(
                       'Bienvenido a PetAdopt',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -117,7 +155,8 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: isLoading
                             ? null
                             : () {
-                                Navigator.of(context).pushNamed('/forgot-password');
+                                Navigator.of(context)
+                                    .pushNamed('/forgot-password');
                               },
                         child: const Text('¿Olvidaste tu contraseña?'),
                       ),

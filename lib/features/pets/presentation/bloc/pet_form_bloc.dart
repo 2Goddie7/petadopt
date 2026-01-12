@@ -46,13 +46,12 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
               message: 'Subiendo imagenes...',
             ));
 
-            final imagePaths = event.images.map((img) => img.path).toList();
-
+            // Pasar los XFile directamente (compatible con web y mobile)
             final uploadResult = await uploadPetImages(
               UploadPetImagesParams(
                 shelterId: createdPet.shelterId,
                 petId: createdPet.id,
-                imagePaths: imagePaths,
+                imagePaths: event.images,
               ),
             );
 
@@ -70,8 +69,7 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
                 ));
 
                 final petWithImages = createdPet.copyWith(
-                  mainImageUrl: imageUrls.isNotEmpty ? imageUrls.first : '',
-                  imagesUrls: imageUrls.length > 1 ? imageUrls.sublist(1) : [],
+                  petImages: imageUrls,
                 );
 
                 final updateResult = await updatePet(
@@ -111,10 +109,7 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
     emit(const PetFormLoading());
 
     try {
-      List<String> allUrls = [
-        if (event.pet.mainImageUrl.isNotEmpty) event.pet.mainImageUrl,
-        ...event.pet.imagesUrls,
-      ];
+      List<String> allUrls = event.pet.petImages;
 
       if (event.deleteImageUrls != null && event.deleteImageUrls!.isNotEmpty) {
         final urlsToDelete = event.deleteImageUrls!;
@@ -132,13 +127,12 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
           message: 'Subiendo ${event.newImages!.length} nueva(s) imagen(es)...',
         ));
 
-        final imagePaths = event.newImages!.map((img) => img.path).toList();
-
+        // Pasar los XFile directamente (compatible con web y mobile)
         final uploadResult = await uploadPetImages(
           UploadPetImagesParams(
             shelterId: event.pet.shelterId,
             petId: event.pet.id,
-            imagePaths: imagePaths,
+            imagePaths: event.newImages!,
           ),
         );
 
@@ -156,8 +150,7 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
             ));
 
             final updatedPet = event.pet.copyWith(
-              mainImageUrl: allUrls.isNotEmpty ? allUrls.first : '',
-              imagesUrls: allUrls.length > 1 ? allUrls.sublist(1) : [],
+              petImages: allUrls,
             );
 
             final result = await updatePet(UpdatePetParams(pet: updatedPet));
@@ -178,8 +171,7 @@ class PetFormBloc extends Bloc<PetFormEvent, PetFormState> {
         ));
 
         final updatedPet = event.pet.copyWith(
-          mainImageUrl: allUrls.isNotEmpty ? allUrls.first : '',
-          imagesUrls: allUrls.length > 1 ? allUrls.sublist(1) : [],
+          petImages: allUrls,
         );
 
         final result = await updatePet(UpdatePetParams(pet: updatedPet));

@@ -34,7 +34,7 @@ abstract class PetsRepository {
   Future<Either<Failure, List<String>>> uploadPetImages(
     String shelterId,
     String petId,
-    List<String> imagePaths,
+    List<dynamic> imagePaths,
   );
 
   /// Incrementa el contador de vistas

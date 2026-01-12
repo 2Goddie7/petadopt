@@ -26,18 +26,18 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     LoadAllSheltersEvent event,
     Emitter<MapState> emit,
   ) async {
+    final currentLocation =
+        state is MapLoaded ? (state as MapLoaded).userLocation : null;
     emit(MapLoading());
-    
+
     final result = await getAllShelters();
-    
+
     result.fold(
       (failure) => emit(MapError(message: failure.message)),
       (shelters) {
         emit(MapLoaded(
           shelters: shelters,
-          userLocation: state is MapLoaded
-              ? (state as MapLoaded).userLocation
-              : null,
+          userLocation: currentLocation,
         ));
       },
     );
@@ -47,8 +47,10 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     LoadNearbySheltersEvent event,
     Emitter<MapState> emit,
   ) async {
+    final currentLocation =
+        state is MapLoaded ? (state as MapLoaded).userLocation : null;
     emit(MapLoading());
-    
+
     final result = await getNearbyShelters(
       GetNearbySheltersParams(
         latitude: event.latitude,
@@ -56,15 +58,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         radiusKm: event.radiusKm,
       ),
     );
-    
+
     result.fold(
       (failure) => emit(MapError(message: failure.message)),
       (shelters) {
         emit(MapLoaded(
           shelters: shelters,
-          userLocation: state is MapLoaded
-              ? (state as MapLoaded).userLocation
-              : null,
+          userLocation: currentLocation,
         ));
       },
     );
@@ -75,9 +75,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     Emitter<MapState> emit,
   ) async {
     final currentState = state;
-    
+
     final result = await getUserLocation();
-    
+
     result.fold(
       (failure) {
         // Si hay error de ubicación, solo mostramos los refugios sin filtrar por cercanía
@@ -86,8 +86,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         }
       },
       (location) {
-        emit(LocationUpdated(location: location));
-        
+        // Mantener los refugios actuales mientras se carga, pero actualizando la ubicación
+        if (currentState is MapLoaded) {
+          emit(currentState.copyWith(userLocation: location));
+        } else {
+          emit(MapLoaded(shelters: const [], userLocation: location));
+        }
+
         // Cargar refugios cercanos a la ubicación del usuario
         add(LoadNearbySheltersEvent(
           latitude: location.latitude,
@@ -103,7 +108,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     Emitter<MapState> emit,
   ) {
     final currentState = state;
-    
+
     if (currentState is MapLoaded) {
       emit(currentState.copyWith(
         selectedShelter: event.shelter,

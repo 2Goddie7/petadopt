@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import '../repositories/profile_repository.dart';
@@ -6,7 +6,8 @@ import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
 
 /// Sube la imagen de perfil de un usuario
-class UploadProfileImage extends UseCaseWithParams<String, UploadProfileImageParams> {
+class UploadProfileImage
+    extends UseCaseWithParams<String, UploadProfileImageParams> {
   final ProfileRepository repository;
 
   UploadProfileImage(this.repository);
@@ -22,7 +23,7 @@ class UploadProfileImage extends UseCaseWithParams<String, UploadProfileImagePar
 
 class UploadProfileImageParams extends Equatable {
   final String userId;
-  final File imageFile;
+  final XFile imageFile;
 
   const UploadProfileImageParams({
     required this.userId,

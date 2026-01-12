@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../bloc/pet_detail_bloc.dart';
 import '../bloc/pet_detail_event.dart';
 import '../bloc/pet_detail_state.dart';
+import '../bloc/pets_bloc.dart';
+import '../bloc/pets_event.dart';
 import '../../domain/entities/pet.dart';
 import '../../../favorites/presentation/bloc/favorites_bloc.dart';
 import '../../../favorites/presentation/bloc/favorites_event.dart';
@@ -149,9 +151,14 @@ class _PetDetailPageState extends State<PetDetailPage> {
           );
         }
 
+        
         return BlocConsumer<AdoptionsBloc, AdoptionsState>(
           listener: (context, adoptionState) {
             if (adoptionState is AdoptionCreated) {
+              // Actualizar listas y detalle
+              context.read<PetsBloc>().add(RefreshPetsEvent());
+              _petDetailBloc.add(const RefreshPetDetailEvent());
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('✓ Solicitud enviada correctamente'),
@@ -338,29 +345,18 @@ class _PetDetailPageState extends State<PetDetailPage> {
   }
 
   Widget _buildPetDetail(BuildContext context, Pet pet) {
-    final imageUrl = pet.mainImageUrl.isNotEmpty ? pet.mainImageUrl : '';
-    final hasGallery = pet.imagesUrls.isNotEmpty;
-    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    // Todas las imágenes del pet (puede estar vacío)
+    final allImages = pet.petImages;
 
     return CustomScrollView(
       slivers: [
+        // Galería de imágenes con PageView
         SliverAppBar(
           expandedHeight: 300,
           pinned: true,
           flexibleSpace: FlexibleSpaceBar(
-            background: imageUrl.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[300],
-                      child: const Center(child: CircularProgressIndicator()),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.pets, size: 100),
-                    ),
-                  )
+            background: allImages.isNotEmpty
+                ? _buildImageGallery(context, allImages)
                 : Container(
                     color: Colors.grey[300],
                     child: const Icon(Icons.pets, size: 100),
@@ -458,7 +454,9 @@ class _PetDetailPageState extends State<PetDetailPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        pet.shelterCity ?? 'Ubicación no disponible',
+                        pet.shelterAddress ??
+                            pet.shelterCity ??
+                            'Ubicación no disponible',
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                     ),
@@ -520,50 +518,6 @@ class _PetDetailPageState extends State<PetDetailPage> {
 
                 const SizedBox(height: 24),
 
-                // Galería
-                if (hasGallery) ...[
-                  Text(
-                    'Más fotos',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: pet.imagesUrls.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: pet.imagesUrls[index],
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[300],
-                                child: const Center(
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.pets),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-
                 const SizedBox(height: 100),
               ],
             ),
@@ -610,9 +564,10 @@ class _PetDetailPageState extends State<PetDetailPage> {
         color = Colors.green;
         label = 'Disponible';
         break;
-      case AdoptionStatus.pending:
+      case AdoptionStatus
+            .pending: // Used when adoption is requested but not finalized
         color = Colors.orange;
-        label = 'Pendiente';
+        label = 'Solicitado'; // More accurate than "Pendiente"
         break;
       case AdoptionStatus.adopted:
         color = Colors.blue;
@@ -634,6 +589,56 @@ class _PetDetailPageState extends State<PetDetailPage> {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+
+  /// Widget para mostrar galería de imágenes con PageView
+  Widget _buildImageGallery(BuildContext context, List<String> images) {
+    return PageView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: images.length,
+      itemBuilder: (context, index) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Imagen con CachedNetworkImage
+            CachedNetworkImage(
+              imageUrl: images[index],
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[300],
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => Container(
+                color: Colors.grey[300],
+                child: const Icon(Icons.image_not_supported, size: 100),
+              ),
+            ),
+            // Indicador de imagen actual
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                child: Text(
+                  '${index + 1}/${images.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

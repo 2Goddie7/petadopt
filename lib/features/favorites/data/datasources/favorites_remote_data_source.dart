@@ -10,27 +10,21 @@ abstract class FavoritesRemoteDataSource {
 }
 
 class FavoritesRemoteDataSourceImpl implements FavoritesRemoteDataSource {
-  final SupabaseClient supabaseClient;
+  final SupabaseClient supabase;
 
-  FavoritesRemoteDataSourceImpl({required this.supabaseClient});
+  FavoritesRemoteDataSourceImpl({required this.supabase});
 
   @override
   Future<List<PetModel>> getFavoritePets(String userId) async {
     try {
-      final response = await supabaseClient
-          .from('favorites')
-          .select('pet_id, pets_with_shelter_info(*)')
+      // Usar la vista favorites_with_pet_info que ya incluye toda la info de la mascota
+      final response = await supabase
+          .from('favorites_with_pet_info')
+          .select('*')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      final List<PetModel> pets = [];
-      for (final item in response) {
-        if (item['pets_with_shelter_info'] != null) {
-          pets.add(PetModel.fromJson(item['pets_with_shelter_info']));
-        }
-      }
-
-      return pets;
+      return (response as List).map((json) => PetModel.fromJson(json)).toList();
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -39,7 +33,7 @@ class FavoritesRemoteDataSourceImpl implements FavoritesRemoteDataSource {
   @override
   Future<bool> isFavorite(String userId, String petId) async {
     try {
-      final response = await supabaseClient
+      final response = await supabase
           .from('favorites')
           .select('user_id')
           .eq('user_id', userId)
@@ -55,7 +49,7 @@ class FavoritesRemoteDataSourceImpl implements FavoritesRemoteDataSource {
   @override
   Future<void> addFavorite(String userId, String petId) async {
     try {
-      await supabaseClient.from('favorites').insert({
+      await supabase.from('favorites').insert({
         'user_id': userId,
         'pet_id': petId,
         'created_at': DateTime.now().toIso8601String(),
@@ -68,7 +62,7 @@ class FavoritesRemoteDataSourceImpl implements FavoritesRemoteDataSource {
   @override
   Future<void> removeFavorite(String userId, String petId) async {
     try {
-      await supabaseClient
+      await supabase
           .from('favorites')
           .delete()
           .eq('user_id', userId)

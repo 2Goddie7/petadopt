@@ -15,8 +15,7 @@ class PetModel extends Pet {
     required super.size,
     required super.description,
     required super.personalityTraits,
-    required super.mainImageUrl,
-    required super.imagesUrls,
+    required super.petImages,
     super.isVaccinated,
     super.isDewormed,
     super.isSterilized,
@@ -29,6 +28,7 @@ class PetModel extends Pet {
     required super.updatedAt,
     super.shelterName,
     super.shelterCity,
+    super.shelterAddress,
     super.shelterLatitude,
     super.shelterLongitude,
   });
@@ -50,11 +50,7 @@ class PetModel extends Pet {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      mainImageUrl: json['main_image_url'] as String,
-      imagesUrls: (json['images_urls'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      petImages: _parsePetImages(json['pet_images']),
       isVaccinated: json['is_vaccinated'] as bool? ?? false,
       isDewormed: json['is_dewormed'] as bool? ?? false,
       isSterilized: json['is_sterilized'] as bool? ?? false,
@@ -68,6 +64,7 @@ class PetModel extends Pet {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       shelterName: json['shelter_name'] as String?,
       shelterCity: json['shelter_city'] as String?,
+      shelterAddress: json['shelter_address'] as String?,
       shelterLatitude: json['shelter_latitude'] != null
           ? (json['shelter_latitude'] as num).toDouble()
           : null,
@@ -91,8 +88,7 @@ class PetModel extends Pet {
       'size': size.toJson(),
       'description': description,
       'personality_traits': personalityTraits,
-      'main_image_url': mainImageUrl,
-      'images_urls': imagesUrls,
+      'pet_images': petImages.map((url) => {'url': url}).toList(),
       'is_vaccinated': isVaccinated,
       'is_dewormed': isDewormed,
       'is_sterilized': isSterilized,
@@ -120,8 +116,7 @@ class PetModel extends Pet {
       size: pet.size,
       description: pet.description,
       personalityTraits: pet.personalityTraits,
-      mainImageUrl: pet.mainImageUrl,
-      imagesUrls: pet.imagesUrls,
+      petImages: pet.petImages,
       isVaccinated: pet.isVaccinated,
       isDewormed: pet.isDewormed,
       isSterilized: pet.isSterilized,
@@ -133,6 +128,8 @@ class PetModel extends Pet {
       createdAt: pet.createdAt,
       updatedAt: pet.updatedAt,
       shelterName: pet.shelterName,
+      shelterCity: pet.shelterCity,
+      shelterAddress: pet.shelterAddress,
       shelterLatitude: pet.shelterLatitude,
       shelterLongitude: pet.shelterLongitude,
     );
@@ -152,8 +149,7 @@ class PetModel extends Pet {
       size: size,
       description: description,
       personalityTraits: personalityTraits,
-      mainImageUrl: mainImageUrl,
-      imagesUrls: imagesUrls,
+      petImages: petImages,
       isVaccinated: isVaccinated,
       isDewormed: isDewormed,
       isSterilized: isSterilized,
@@ -165,6 +161,8 @@ class PetModel extends Pet {
       createdAt: createdAt,
       updatedAt: updatedAt,
       shelterName: shelterName,
+      shelterCity: shelterCity,
+      shelterAddress: shelterAddress,
       shelterLatitude: shelterLatitude,
       shelterLongitude: shelterLongitude,
     );
@@ -184,8 +182,7 @@ class PetModel extends Pet {
     PetSize? size,
     String? description,
     List<String>? personalityTraits,
-    String? mainImageUrl,
-    List<String>? imagesUrls,
+    List<String>? petImages,
     bool? isVaccinated,
     bool? isDewormed,
     bool? isSterilized,
@@ -197,6 +194,8 @@ class PetModel extends Pet {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? shelterName,
+    String? shelterCity,
+    String? shelterAddress,
     double? shelterLatitude,
     double? shelterLongitude,
   }) {
@@ -212,8 +211,7 @@ class PetModel extends Pet {
       size: size ?? this.size,
       description: description ?? this.description,
       personalityTraits: personalityTraits ?? this.personalityTraits,
-      mainImageUrl: mainImageUrl ?? this.mainImageUrl,
-      imagesUrls: imagesUrls ?? this.imagesUrls,
+      petImages: petImages ?? this.petImages,
       isVaccinated: isVaccinated ?? this.isVaccinated,
       isDewormed: isDewormed ?? this.isDewormed,
       isSterilized: isSterilized ?? this.isSterilized,
@@ -225,6 +223,8 @@ class PetModel extends Pet {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       shelterName: shelterName ?? this.shelterName,
+      shelterCity: shelterCity ?? this.shelterCity,
+      shelterAddress: shelterAddress ?? this.shelterAddress,
       shelterLatitude: shelterLatitude ?? this.shelterLatitude,
       shelterLongitude: shelterLongitude ?? this.shelterLongitude,
     );
@@ -244,8 +244,7 @@ class PetModel extends Pet {
       size: PetSize.medium,
       description: '',
       personalityTraits: [],
-      mainImageUrl: '',
-      imagesUrls: [],
+      petImages: [],
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -264,8 +263,7 @@ class PetModel extends Pet {
       'size': size.toJson(),
       'description': description,
       'personality_traits': personalityTraits,
-      'main_image_url': mainImageUrl,
-      'images_urls': imagesUrls,
+      'pet_images': petImages.map((url) => {'url': url}).toList(),
       'is_vaccinated': isVaccinated,
       'is_dewormed': isDewormed,
       'is_sterilized': isSterilized,
@@ -288,8 +286,7 @@ class PetModel extends Pet {
       'size': size.toJson(),
       'description': description,
       'personality_traits': personalityTraits,
-      'main_image_url': mainImageUrl,
-      'images_urls': imagesUrls,
+      'pet_images': petImages.map((url) => {'url': url}).toList(),
       'is_vaccinated': isVaccinated,
       'is_dewormed': isDewormed,
       'is_sterilized': isSterilized,
@@ -299,5 +296,21 @@ class PetModel extends Pet {
       'adoption_status': adoptionStatus.toJson(),
       'updated_at': DateTime.now().toIso8601String(),
     };
+  }
+
+  /// Parse pet_images JSONB de Supabase
+  static List<String> _parsePetImages(dynamic petImagesData) {
+    if (petImagesData == null) return [];
+
+    // Si es una lista de maps {'url': '...'} (JSONB array)
+    if (petImagesData is List) {
+      return petImagesData
+          .whereType<Map<String, dynamic>>()
+          .map((item) => item['url'] as String? ?? '')
+          .where((url) => url.isNotEmpty)
+          .toList();
+    }
+
+    return [];
   }
 }

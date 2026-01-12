@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 abstract class ProfileEvent extends Equatable {
   const ProfileEvent();
@@ -24,21 +24,26 @@ class UpdateProfileEvent extends ProfileEvent {
   final String? phone;
   final String? bio;
   final String? location;
+  final double? latitude;
+  final double? longitude;
 
   const UpdateProfileEvent({
     required this.fullName,
     this.phone,
     this.bio,
     this.location,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props => [fullName, phone, bio, location];
+  List<Object?> get props =>
+      [fullName, phone, bio, location, latitude, longitude];
 }
 
 /// Subir imagen de perfil
 class UploadProfileImageEvent extends ProfileEvent {
-  final File imageFile;
+  final XFile imageFile;
 
   const UploadProfileImageEvent({required this.imageFile});
 

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:dartz/dartz.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
@@ -29,7 +29,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
-  Future<Either<Failure, UserProfile>> updateProfile(UserProfile profile) async {
+  Future<Either<Failure, UserProfile>> updateProfile(
+      UserProfile profile) async {
     try {
       final profileModel = UserProfileModel.fromEntity(profile);
       final updatedModel = await remoteDataSource.updateProfile(profileModel);
@@ -50,7 +51,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<Either<Failure, String>> uploadProfileImage(
     String userId,
-    File imageFile,
+    XFile imageFile,
   ) async {
     try {
       final imageUrl = await remoteDataSource.uploadProfileImage(

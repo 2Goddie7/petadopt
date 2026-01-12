@@ -10,6 +10,7 @@ import '../../features/auth/domain/usecases/sign_in_with_email.dart';
 import '../../features/auth/domain/usecases/sign_in_with_google.dart';
 import '../../features/auth/domain/usecases/sign_out.dart';
 import '../../features/auth/domain/usecases/reset_password.dart';
+import '../../features/auth/domain/usecases/complete_oauth_profile.dart';
 import '../../features/auth/domain/usecases/get_current_user.dart';
 import '../../features/auth/domain/usecases/is_signed_in.dart';
 
@@ -44,11 +45,15 @@ import '../../features/adoptions/domain/usecases/has_active_pet_request.dart';
 
 // Features - AI Chat
 import '../../features/ai_chat/data/datasources/gemini_remote_data_source.dart';
+import '../../features/ai_chat/data/datasources/gemini_data_source.dart';
 import '../../features/ai_chat/data/repositories/ai_chat_repository_impl.dart';
+import '../../features/ai_chat/data/repositories/gemini_repository_impl.dart';
 import '../../features/ai_chat/domain/repositories/ai_chat_repository.dart';
+import '../../features/ai_chat/domain/repositories/gemini_repository.dart';
 import '../../features/ai_chat/domain/usecases/send_message.dart';
 import '../../features/ai_chat/domain/usecases/get_chat_history.dart';
 import '../../features/ai_chat/domain/usecases/clear_chat_history.dart';
+import '../../features/ai_chat/domain/usecases/send_message_to_gemini.dart';
 
 // Features - Map
 import '../../features/map/data/datasources/shelters_remote_data_source.dart';
@@ -79,13 +84,18 @@ import '../../features/favorites/domain/usecases/get_favorite_pets.dart';
 import '../../features/favorites/domain/usecases/is_favorite.dart';
 import '../../features/favorites/domain/usecases/toggle_favorite.dart';
 
+// Features - Notifications
+import '../../features/notifications/data/datasources/notification_datasource.dart';
+import '../../features/notifications/domain/repositories/notification_repository.dart';
+import '../../features/notifications/data/services/local_notification_service.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
   // ============================================
   // EXTERNAL
   // ============================================
-  
+
   // Supabase Client (singleton)
   sl.registerLazySingleton<SupabaseClient>(
     () => Supabase.instance.client,
@@ -94,7 +104,7 @@ Future<void> init() async {
   // ============================================
   // FEATURES - AUTH
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => SignUp(sl()));
   sl.registerLazySingleton(() => SignInWithEmail(sl()));
@@ -103,12 +113,13 @@ Future<void> init() async {
   sl.registerLazySingleton(() => ResetPassword(sl()));
   sl.registerLazySingleton(() => GetCurrentUser(sl()));
   sl.registerLazySingleton(() => IsSignedIn(sl()));
-  
+  sl.registerLazySingleton(() => CompleteOAuthProfile(sl()));
+
   // Repository
   sl.registerLazySingleton<AuthRepository>(
     () => AuthRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<AuthRemoteDataSource>(
     () => AuthRemoteDataSourceImpl(supabase: sl()),
@@ -117,7 +128,7 @@ Future<void> init() async {
   // ============================================
   // FEATURES - PETS
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => GetAllPets(sl()));
   sl.registerLazySingleton(() => GetPetById(sl()));
@@ -130,12 +141,12 @@ Future<void> init() async {
   sl.registerLazySingleton(() => IncrementPetViews(sl()));
   sl.registerLazySingleton(() => UpdateAdoptionStatus(sl()));
   sl.registerLazySingleton(() => GetCurrentShelter(sl()));
-  
+
   // Repository
   sl.registerLazySingleton<PetsRepository>(
     () => PetsRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<PetsRemoteDataSource>(
     () => PetsRemoteDataSourceImpl(supabase: sl()),
@@ -144,7 +155,7 @@ Future<void> init() async {
   // ============================================
   // FEATURES - ADOPTIONS
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => CreateAdoptionRequest(sl()));
   sl.registerLazySingleton(() => GetUserRequests(sl()));
@@ -154,12 +165,12 @@ Future<void> init() async {
   sl.registerLazySingleton(() => RejectRequest(sl()));
   sl.registerLazySingleton(() => CancelRequest(sl()));
   sl.registerLazySingleton(() => HasActivePetRequest(sl()));
-  
+
   // Repository
   sl.registerLazySingleton<AdoptionsRepository>(
     () => AdoptionsRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<AdoptionsRemoteDataSource>(
     () => AdoptionsRemoteDataSourceImpl(supabase: sl()),
@@ -168,26 +179,39 @@ Future<void> init() async {
   // ============================================
   // FEATURES - AI CHAT
   // ============================================
-  
-  // Use Cases
+
+  // Use Cases - Legacy (Supabase)
   sl.registerLazySingleton(() => SendMessage(sl()));
   sl.registerLazySingleton(() => GetChatHistory(sl()));
   sl.registerLazySingleton(() => ClearChatHistory(sl()));
-  
-  // Repository
+
+  // Use Cases - Gemini
+  sl.registerLazySingleton(() => SendMessageToGemini(sl()));
+
+  // Repository - Legacy (Supabase)
   sl.registerLazySingleton<AiChatRepository>(
     () => AiChatRepositoryImpl(remoteDataSource: sl()),
   );
-  
-  // Data Source
+
+  // Repository - Gemini
+  sl.registerLazySingleton<GeminiRepository>(
+    () => GeminiRepositoryImpl(remoteDataSource: sl()),
+  );
+
+  // Data Source - Legacy (Supabase)
   sl.registerLazySingleton<ChatRemoteDataSource>(
     () => ChatRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // Data Source - Gemini
+  sl.registerLazySingleton<GeminiDataSource>(
+    () => GeminiDataSourceImpl(),
   );
 
   // ============================================
   // FEATURES - MAP
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => GetAllShelters(sl()));
   sl.registerLazySingleton(() => GetShelterById(sl()));
@@ -197,52 +221,71 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetUserLocation(sl()));
   sl.registerLazySingleton(() => CreateShelter(sl()));
   sl.registerLazySingleton(() => UpdateShelter(sl()));
-  
+
   // Repository
   sl.registerLazySingleton<MapRepository>(
     () => MapRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<SheltersRemoteDataSource>(
     () => SheltersRemoteDataSourceImpl(supabase: sl()),
   );
 
   // ============================================
-  // FEATURES - PROFILE ⭐ NUEVO
+  // FEATURES - PROFILE
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => GetProfile(sl()));
   sl.registerLazySingleton(() => UpdateProfile(sl()));
   sl.registerLazySingleton(() => UploadProfileImage(sl()));
-  
+
   // Repository
   sl.registerLazySingleton<ProfileRepository>(
     () => ProfileRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<ProfileRemoteDataSource>(
     () => ProfileRemoteDataSourceImpl(supabase: sl()),
   );
 
   // ============================================
-  // FEATURES - FAVORITES ⭐ NUEVO
+  // FEATURES - FAVORITES
   // ============================================
-  
+
   // Use Cases
   sl.registerLazySingleton(() => GetFavoritePets(sl()));
   sl.registerLazySingleton(() => IsFavorite(sl()));
   sl.registerLazySingleton(() => ToggleFavorite(sl()));
-  
+
   // Repository
   sl.registerLazySingleton<FavoritesRepository>(
     () => FavoritesRepositoryImpl(remoteDataSource: sl()),
   );
-  
+
   // Data Source
   sl.registerLazySingleton<FavoritesRemoteDataSource>(
-    () => FavoritesRemoteDataSourceImpl(supabaseClient: sl()),
+    () => FavoritesRemoteDataSourceImpl(supabase: sl()),
+  );
+
+  // ============================================
+  // FEATURES - NOTIFICATIONS
+  // ============================================
+
+  // Data Source
+  sl.registerLazySingleton<NotificationDataSource>(
+    () => NotificationDataSource(sl()),
+  );
+
+  // Repository
+  sl.registerLazySingleton<NotificationRepository>(
+    () => NotificationRepository(sl()),
+  );
+
+  // Service (Singleton para persistir a lo largo de la app)
+  sl.registerLazySingleton<LocalNotificationService>(
+    () => LocalNotificationService(repository: sl()),
   );
 }

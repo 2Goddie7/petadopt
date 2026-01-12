@@ -10,6 +10,8 @@ class UserProfile extends Equatable {
   final String? avatarUrl;
   final String? bio;
   final String? location;
+  final double? latitude;
+  final double? longitude;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,6 +24,8 @@ class UserProfile extends Equatable {
     this.avatarUrl,
     this.bio,
     this.location,
+    this.latitude,
+    this.longitude,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -36,6 +40,8 @@ class UserProfile extends Equatable {
     String? avatarUrl,
     String? bio,
     String? location,
+    double? latitude,
+    double? longitude,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -48,6 +54,8 @@ class UserProfile extends Equatable {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       bio: bio ?? this.bio,
       location: location ?? this.location,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

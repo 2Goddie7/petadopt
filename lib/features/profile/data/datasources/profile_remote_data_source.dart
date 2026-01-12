@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_profile_model.dart';
 import '../../../../core/constants/api_constants.dart';
@@ -13,7 +13,7 @@ abstract class ProfileRemoteDataSource {
   Future<UserProfileModel> updateProfile(UserProfileModel profile);
 
   /// Sube la imagen de perfil del usuario
-  Future<String> uploadProfileImage(String userId, File imageFile);
+  Future<String> uploadProfileImage(String userId, XFile imageFile);
 }
 
 /// Implementación del Profile Remote Data Source con Supabase
@@ -73,10 +73,10 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   }
 
   @override
-  Future<String> uploadProfileImage(String userId, File imageFile) async {
+  Future<String> uploadProfileImage(String userId, XFile imageFile) async {
     try {
-      // Validar que el archivo sea una imagen
-      final extension = imageFile.path.split('.').last.toLowerCase();
+      // Validar que el archivo sea una imagen - extraer extensión de XFile.name (no de path que es blob URL en web)
+      final extension = imageFile.name.split('.').last.toLowerCase();
       if (!ApiConstants.allowedImageFormats.contains(extension)) {
         throw ValidationException(
           'Formato de imagen no permitido. Usa: ${ApiConstants.allowedImageFormats.join(", ")}',
@@ -92,13 +92,18 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
       }
 
       // Nombre único para el archivo
-      final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final fileName =
+          '${userId}_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final filePath = '$userId/$fileName';
 
       // Subir archivo a Supabase Storage
+      final bytes = await imageFile.readAsBytes();
       await supabase.storage
           .from(ApiConstants.profileAvatarsBucket)
-          .upload(filePath, imageFile);
+          .uploadBinary(
+            filePath,
+            bytes,
+          );
 
       // Obtener URL pública
       final publicUrl = supabase.storage
@@ -106,17 +111,15 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
           .getPublicUrl(filePath);
 
       // Actualizar avatar_url en la tabla profiles
-      await supabase
-          .from(ApiConstants.profilesTable)
-          .update({
-            'avatar_url': publicUrl,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', userId);
+      await supabase.from(ApiConstants.profilesTable).update({
+        'avatar_url': publicUrl,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
 
       return publicUrl;
     } on StorageException catch (e) {
-      throw ServerException('Error al subir imagen: ${e.message}', e.statusCode);
+      throw ServerException(
+          'Error al subir imagen: ${e.message}', e.statusCode);
     } on PostgrestException catch (e) {
       throw ServerException(e.message, e.code);
     } catch (e) {

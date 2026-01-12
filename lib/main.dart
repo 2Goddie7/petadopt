@@ -3,13 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'core/constants/api_constants.dart';
 import 'core/theme/app_theme.dart';
-import 'config/dependency_injection/injection_container.dart' as di;
+import 'core/di/injection_container.dart' as di;
+import 'features/notifications/data/services/local_notification_service.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/register_page.dart';
 import 'features/auth/presentation/pages/forgot_password_page.dart';
+import 'features/auth/presentation/pages/select_role_page.dart';
 import 'features/auth/presentation/pages/home_page.dart';
 import 'features/pets/presentation/pages/pets_list_page.dart';
 import 'features/pets/presentation/pages/create_pet_page.dart';
@@ -36,6 +38,9 @@ Future<void> main() async {
     await Supabase.initialize(
       url: ApiConstants.supabaseUrl,
       anonKey: ApiConstants.supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
     );
     await di.init();
     AppTheme.setSystemUIOverlayStyle();
@@ -70,16 +75,18 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription? _sub;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   late AppLinks _appLinks;
+  late LocalNotificationService _notificationService;
 
   @override
   void initState() {
     super.initState();
     _appLinks = AppLinks();
+    _initNotifications();
     _initDeepLinks();
   }
 
   Future<void> _initDeepLinks() async {
-    // Escuchar deep links cuando la app está abierta
+    // Escuchar deep links cuando la app está abierta (para auth callbacks y otros)
     _sub = _appLinks.uriLinkStream.listen((Uri uri) {
       _handleDeepLink(uri);
     }, onError: (err) {
@@ -89,16 +96,56 @@ class _MyAppState extends State<MyApp> {
     // Manejar deep link inicial (cuando la app se abre desde cerrada)
     try {
       final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) _handleDeepLink(initialUri);
+      if (initialUri != null) {
+        debugPrint('🔗 Deep link inicial recibido: $initialUri');
+        _handleDeepLink(initialUri);
+      }
     } catch (e) {
       debugPrint('Error obteniendo initial URI: $e');
     }
   }
 
+  /// Inicializa el servicio de notificaciones locales
+  Future<void> _initNotifications() async {
+    try {
+      _notificationService = di.sl<LocalNotificationService>();
+
+      // Inicializar el servicio
+      await _notificationService.initialize();
+      debugPrint('✅ LocalNotificationService inicializado');
+
+      // Iniciar escucha si el usuario ya está autenticado
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser != null) {
+        _notificationService.startListening(currentUser.id);
+        debugPrint('✅ Notificaciones escuchando para: ${currentUser.id}');
+      }
+
+      // Escuchar cambios de autenticación
+      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        final session = data.session;
+
+        if (session != null && session.user.id.isNotEmpty) {
+          // Usuario autenticado - iniciar escucha
+          _notificationService.startListening(session.user.id);
+          debugPrint(
+              '✅ Notificaciones activas para usuario: ${session.user.id}');
+        } else {
+          // Usuario no autenticado - detener escucha
+          _notificationService.stopListening();
+          debugPrint('❌ Notificaciones detenidas (usuario desconectado)');
+        }
+      });
+    } catch (e) {
+      debugPrint('⚠️ Error inicializando notificaciones: $e');
+      // No retenemos el error para que la app continúe funcionando
+    }
+  }
+
   void _handleDeepLink(Uri uri) {
     debugPrint('🔗 Deep link recibido: $uri');
-    
-    // petadopt://auth/success o petadopt://auth/error
+
+    // petadopt://auth/success, petadopt://auth/error, petadopt://auth/verified, petadopt://auth/reset-success
     if (uri.scheme == 'petadopt' && uri.host == 'auth') {
       final context = navigatorKey.currentContext;
       if (context == null) return;
@@ -106,7 +153,7 @@ class _MyAppState extends State<MyApp> {
       if (uri.path == '/success') {
         final message = uri.queryParameters['message'];
         String text = '✓ Acción completada exitosamente';
-        
+
         if (message == 'email_confirmed') {
           text = '✓ Email confirmado. Ya puedes iniciar sesión';
         } else if (message == 'password_updated') {
@@ -114,7 +161,7 @@ class _MyAppState extends State<MyApp> {
           // Verificar sesión actualizada
           context.read<AuthBloc>().add(const CheckAuthStatusEvent());
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(text),
@@ -122,6 +169,33 @@ class _MyAppState extends State<MyApp> {
             duration: const Duration(seconds: 3),
           ),
         );
+      } else if (uri.path == '/verified') {
+        // Callback desde verify.html
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                '✓ Email verificado exitosamente. Ya puedes iniciar sesión'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        // Verificar sesión por si ya está autenticado
+        context.read<AuthBloc>().add(const CheckAuthStatusEvent());
+      } else if (uri.path == '/reset-success') {
+        // Callback desde reset-password.html
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                '✓ Contraseña actualizada correctamente. Ya puedes iniciar sesión'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+          ),
+        );
+
+        // Navegar al login
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil('/login', (route) => false);
       } else if (uri.path == '/error') {
         final message = uri.queryParameters['message'] ?? 'Error desconocido';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -138,6 +212,11 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _sub?.cancel();
+    try {
+      _notificationService.dispose();
+    } catch (e) {
+      debugPrint('Error en dispose de _notificationService: $e');
+    }
     super.dispose();
   }
 
@@ -153,6 +232,7 @@ class _MyAppState extends State<MyApp> {
             signOut: di.sl(),
             resetPassword: di.sl(),
             getCurrentUser: di.sl(),
+            completeOAuthProfile: di.sl(),
           )..add(const CheckAuthStatusEvent()),
         ),
         BlocProvider(
@@ -257,12 +337,25 @@ class AuthWrapper extends StatelessWidget {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         print('🔍 AuthWrapper - Estado actual: ${state.runtimeType}');
-        
+
         if (state is Unauthenticated) {
-          print('🔓 AuthWrapper - Usuario no autenticado, redirigiendo al login...');
+          print(
+              '🔓 AuthWrapper - Usuario no autenticado, redirigiendo al login...');
           Navigator.of(context).pushNamedAndRemoveUntil(
             '/login',
             (route) => false,
+          );
+        } else if (state is OAuthRoleSelectionNeeded) {
+          print(
+              '🎯 AuthWrapper - Usuario OAuth sin rol, mostrando selección de rol...');
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => SelectRolePage(
+                userId: state.userId,
+                email: state.email,
+                fullName: state.fullName,
+              ),
+            ),
           );
         } else if (state is Authenticated) {
           print('✅ AuthWrapper - Usuario autenticado, redirigiendo al home...');
@@ -281,7 +374,8 @@ class AuthWrapper extends StatelessWidget {
               const SizedBox(height: 24),
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('Cargando PetAdopt...', style: Theme.of(context).textTheme.titleMedium),
+              Text('Cargando PetAdopt...',
+                  style: Theme.of(context).textTheme.titleMedium),
             ],
           ),
         ),

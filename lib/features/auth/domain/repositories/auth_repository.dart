@@ -25,6 +25,13 @@ abstract class AuthRepository {
   /// Inicia sesión con Google OAuth
   Future<Either<Failure, User>> signInWithGoogle();
 
+  /// Completa el perfil OAuth después de seleccionar rol
+  Future<Either<Failure, User>> completeOAuthProfile({
+    required String userId,
+    required String userType,
+    String? phone,
+  });
+
   /// Cierra la sesión actual
   Future<Either<Failure, void>> signOut();
 

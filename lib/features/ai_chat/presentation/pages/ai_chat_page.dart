@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/chat_bloc.dart';
+import '../bloc/chat_ia_bloc.dart';
 import '../bloc/chat_event.dart';
 import '../bloc/chat_state.dart';
 import '../widgets/message_bubble.dart';
@@ -33,9 +34,25 @@ class _AiChatPageState extends State<AiChatPage> {
   void _loadChatHistory() {
     final authState = context.read<AuthBloc>().state;
     if (authState is Authenticated) {
-      context.read<ChatBloc>().add(
-            LoadChatHistoryEvent(userId: authState.user.id),
-          );
+      // Usar ChatIaBloc si está disponible, sino usar ChatBloc
+      final hasChatIaBloc = _getChatIaBloc() != null;
+      if (hasChatIaBloc) {
+        _getChatIaBloc()!.add(
+          LoadChatHistoryEvent(userId: authState.user.id),
+        );
+      } else {
+        context.read<ChatBloc>().add(
+              LoadChatHistoryEvent(userId: authState.user.id),
+            );
+      }
+    }
+  }
+
+  ChatIaBloc? _getChatIaBloc() {
+    try {
+      return context.read<ChatIaBloc>();
+    } catch (e) {
+      return null;
     }
   }
 
@@ -53,6 +70,8 @@ class _AiChatPageState extends State<AiChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final hasChatIaBloc = _getChatIaBloc() != null;
+
     return Scaffold(
       appBar: AppBar(
         title: const Row(
@@ -92,98 +111,193 @@ class _AiChatPageState extends State<AiChatPage> {
           ),
         ],
       ),
-      body: BlocConsumer<ChatBloc, ChatState>(
-        listener: (context, state) {
-          if (state is ChatError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
+      body: hasChatIaBloc ? _buildWithChatIaBloc() : _buildWithChatBloc(),
+    );
+  }
+
+  // Construir UI con ChatIaBloc
+  Widget _buildWithChatIaBloc() {
+    return BlocConsumer<ChatIaBloc, ChatState>(
+      listener: (context, state) {
+        if (state is ChatError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
+        if (state is ChatLoaded || state is ChatSending) {
+          _scrollToBottom();
+        }
+      },
+      builder: (context, state) {
+        if (state is ChatLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is ChatInitial) {
+          return _buildWelcomeScreen();
+        }
+
+        if (state is ChatLoaded ||
+            state is ChatSending ||
+            (state is ChatError && state.previousMessages != null)) {
+          final messages = state is ChatLoaded
+              ? state.messages
+              : state is ChatSending
+                  ? state.messages
+                  : (state as ChatError).previousMessages!;
+
+          return Column(
+            children: [
+              Expanded(
+                child: messages.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          return MessageBubble(message: messages[index]);
+                        },
+                      ),
               ),
-            );
-          }
-          
-          if (state is MessageSent || state is ChatLoaded) {
-            _scrollToBottom();
-          }
-        },
-        builder: (context, state) {
-          if (state is ChatLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is ChatInitial) {
-            return _buildWelcomeScreen();
-          }
-
-          if (state is ChatLoaded ||
-              state is ChatSending ||
-              state is ChatError && state.previousMessages != null) {
-            final messages = state is ChatLoaded
-                ? state.messages
-                : state is ChatSending
-                    ? state.messages
-                    : (state as ChatError).previousMessages!;
-
-            return Column(
-              children: [
-                Expanded(
-                  child: messages.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          itemCount: messages.length,
-                          itemBuilder: (context, index) {
-                            return MessageBubble(message: messages[index]);
-                          },
-                        ),
-                ),
-                
-                // Indicador de "escribiendo..."
-                if (state is ChatSending)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'IA está escribiendo...',
-                          style: TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
+              if (state is ChatSending)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                
-                ChatInputField(
-                  onSend: (message) {
-                    context.read<ChatBloc>().add(
-                          SendMessageEvent(message: message),
-                        );
-                  },
-                  enabled: state is! ChatSending,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'IA está escribiendo...',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            );
-          }
+              ChatInputField(
+                onSend: (message) {
+                  context.read<ChatIaBloc>().add(
+                        SendMessageEvent(message: message),
+                      );
+                },
+                enabled: state is! ChatSending,
+              ),
+            ],
+          );
+        }
 
-          return const SizedBox();
-        },
-      ),
+        return const SizedBox();
+      },
+    );
+  }
+
+  // Construir UI con ChatBloc (fallback)
+  Widget _buildWithChatBloc() {
+    return BlocConsumer<ChatBloc, ChatState>(
+      listener: (context, state) {
+        if (state is ChatError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
+        if (state is ChatLoaded || state is ChatSending) {
+          _scrollToBottom();
+        }
+      },
+      builder: (context, state) {
+        if (state is ChatLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (state is ChatInitial) {
+          return _buildWelcomeScreen();
+        }
+
+        if (state is ChatLoaded ||
+            state is ChatSending ||
+            (state is ChatError && state.previousMessages != null)) {
+          final messages = state is ChatLoaded
+              ? state.messages
+              : state is ChatSending
+                  ? state.messages
+                  : (state as ChatError).previousMessages!;
+
+          return Column(
+            children: [
+              Expanded(
+                child: messages.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          return MessageBubble(message: messages[index]);
+                        },
+                      ),
+              ),
+              if (state is ChatSending)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'IA está escribiendo...',
+                        style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ChatInputField(
+                onSend: (message) {
+                  context.read<ChatBloc>().add(
+                        SendMessageEvent(message: message),
+                      );
+                },
+                enabled: state is! ChatSending,
+              ),
+            ],
+          );
+        }
+
+        return const SizedBox();
+      },
     );
   }
 
@@ -234,31 +348,45 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   Widget _buildEmptyState() {
+    // Usamos Builder para tener acceso seguro al contexto del tema o definimos colores directamente
+    final primaryColor = Theme.of(context).primaryColor;
+
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.chat_bubble_outline,
-              size: 80,
-              color: Colors.grey[300],
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.smart_toy_rounded,
+                size: 64,
+                color: primaryColor,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Text(
-              'No hay mensajes aún',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Escribe un mensaje para empezar',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[500],
-                  ),
+              '¿En qué puedo ayudarte hoy?',
               textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '¡Hola! Soy tu asistente virtual de adopción.\nPregúntame sobre cuidados, razas o consejos para tu nueva mascota.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -267,6 +395,8 @@ class _AiChatPageState extends State<AiChatPage> {
   }
 
   void _showClearHistoryDialog() {
+    final hasChatIaBloc = _getChatIaBloc() != null;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -282,7 +412,11 @@ class _AiChatPageState extends State<AiChatPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<ChatBloc>().add(const ClearChatHistoryEvent());
+              if (hasChatIaBloc) {
+                _getChatIaBloc()!.add(const ClearChatHistoryEvent());
+              } else {
+                context.read<ChatBloc>().add(const ClearChatHistoryEvent());
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Limpiar'),

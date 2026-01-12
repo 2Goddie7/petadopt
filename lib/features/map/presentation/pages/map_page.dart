@@ -72,20 +72,14 @@ class _MapPageState extends State<MapPage> {
           }
 
           // Centrar mapa automáticamente cuando se obtiene ubicación del usuario
+          // NOTA: Se eliminó el SnackBar recurrente para evitar spam
           if (state is MapLoaded && state.userLocation != null) {
-            _mapController.move(
+            // Solo mover si es necesario, o dejar que el usuario explore
+            /* _mapController.move(
               LatLng(
                   state.userLocation!.latitude, state.userLocation!.longitude),
               14.0,
-            );
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('✓ Tu ubicación actualizada'),
-                duration: Duration(seconds: 2),
-                backgroundColor: Colors.green,
-              ),
-            );
+            ); */
           }
         },
         builder: (context, state) {
@@ -115,34 +109,6 @@ class _MapPageState extends State<MapPage> {
                       maxNativeZoom: 19,
                     ),
 
-                    // Marcador de ubicación del usuario
-                    if (state.userLocation != null)
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: LatLng(
-                              state.userLocation!.latitude,
-                              state.userLocation!.longitude,
-                            ),
-                            width: 40,
-                            height: 40,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.3),
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.blue, width: 3),
-                              ),
-                              child: const Icon(
-                                Icons.my_location,
-                                color: Colors.blue,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
                     // Marcadores de refugios
                     MarkerLayer(
                       markers: state.shelters.map((shelter) {
@@ -163,6 +129,77 @@ class _MapPageState extends State<MapPage> {
                         );
                       }).toList(),
                     ),
+
+                    // Marcador de ubicación del usuario (Renderizar al final para que esté arriba)
+                    if (state.userLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(
+                              state.userLocation!.latitude,
+                              state.userLocation!.longitude,
+                            ),
+                            width: 60, // Aumentar tamaño para evitar recortes
+                            height: 60,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Icono principal
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons
+                                        .person_pin_circle_rounded, // Icono más representativo
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                // Etiqueta "Tú"
+                                Positioned(
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: Colors.blue.withOpacity(0.5),
+                                          width: 1),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 2,
+                                          offset: Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Text(
+                                      'Tú',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
 

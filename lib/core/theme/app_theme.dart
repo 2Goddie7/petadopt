@@ -15,7 +15,7 @@ class AppTheme {
     // Configuración básica
     useMaterial3: true,
     brightness: Brightness.light,
-    
+
     // Esquema de colores
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
@@ -30,7 +30,7 @@ class AppTheme {
 
     // Colores de scaffold
     scaffoldBackgroundColor: AppColors.background,
-    
+
     // AppBar Theme
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.primary,
@@ -49,8 +49,8 @@ class AppTheme {
       ),
     ),
 
-    // Card Theme
-    cardTheme: CardTheme(
+// Card Theme
+    cardTheme: CardThemeData(
       color: AppColors.cardBackground,
       elevation: 2,
       shadowColor: AppColors.shadow,
@@ -119,7 +119,8 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.inputBorderFocused, width: 2),
+        borderSide:
+            const BorderSide(color: AppColors.inputBorderFocused, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -181,9 +182,8 @@ class AppTheme {
       brightness: Brightness.light,
       elevation: 0,
     ),
-
-    // Dialog Theme
-    dialogTheme: DialogTheme(
+// Dialog Theme
+    dialogTheme: DialogThemeData(
       backgroundColor: AppColors.cardBackground,
       elevation: 8,
       shape: RoundedRectangleBorder(
@@ -269,22 +269,22 @@ class AppTheme {
       displayLarge: AppTextStyles.displayLarge,
       displayMedium: AppTextStyles.displayMedium,
       displaySmall: AppTextStyles.displaySmall,
-      
+
       // Headline
       headlineLarge: AppTextStyles.headlineLarge,
       headlineMedium: AppTextStyles.headlineMedium,
       headlineSmall: AppTextStyles.headlineSmall,
-      
+
       // Title
       titleLarge: AppTextStyles.titleLarge,
       titleMedium: AppTextStyles.titleMedium,
       titleSmall: AppTextStyles.titleSmall,
-      
+
       // Label
       labelLarge: AppTextStyles.labelLarge,
       labelMedium: AppTextStyles.labelMedium,
       labelSmall: AppTextStyles.labelSmall,
-      
+
       // Body
       bodyLarge: AppTextStyles.bodyLarge,
       bodyMedium: AppTextStyles.bodyMedium,
@@ -346,7 +346,7 @@ class AppTheme {
     // Configuración de splash y highlight
     splashColor: AppColors.primary.withOpacity(0.1),
     highlightColor: AppColors.primary.withOpacity(0.05),
-    
+
     // Divider color
     dividerColor: AppColors.divider,
   );
@@ -354,7 +354,7 @@ class AppTheme {
   // ============================================
   // CONFIGURACIÓN DEL SISTEMA
   // ============================================
-  
+
   /// Configura la barra de estado y navegación del sistema
   static void setSystemUIOverlayStyle() {
     SystemChrome.setSystemUIOverlayStyle(

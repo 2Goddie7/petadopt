@@ -3,14 +3,17 @@ import 'auth_event.dart';
 import 'auth_state.dart';
 import '../../../../features/auth/domain/usecases/sign_in_with_email.dart';
 import '../../../../features/auth/domain/usecases/sign_in_with_google.dart';
+import '../../../../features/auth/domain/usecases/complete_oauth_profile.dart';
 import '../../../../features/auth/domain/usecases/sign_up.dart';
 import '../../../../features/auth/domain/usecases/sign_out.dart';
 import '../../../../features/auth/domain/usecases/reset_password.dart';
 import '../../../../features/auth/domain/usecases/get_current_user.dart';
+
 /// BLoC de autenticación
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInWithEmail signInWithEmail;
   final SignInWithGoogle signInWithGoogle;
+  final CompleteOAuthProfile completeOAuthProfile;
   final SignUp signUp;
   final SignOut signOut;
   final ResetPassword resetPassword;
@@ -19,6 +22,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required this.signInWithEmail,
     required this.signInWithGoogle,
+    required this.completeOAuthProfile,
     required this.signUp,
     required this.signOut,
     required this.resetPassword,
@@ -26,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }) : super(const AuthInitial()) {
     on<SignInWithEmailEvent>(_onSignInWithEmail);
     on<SignInWithGoogleEvent>(_onSignInWithGoogle);
+    on<CompleteOAuthProfileEvent>(_onCompleteOAuthProfile);
     on<SignUpEvent>(_onSignUp);
     on<SignOutEvent>(_onSignOut);
     on<ResetPasswordEvent>(_onResetPassword);
@@ -63,6 +68,38 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
+      (user) {
+        // Verificar si el usuario necesita seleccionar rol (OAuth sin user_type)
+        if (user.userType == null) {
+          emit(OAuthRoleSelectionNeeded(
+            userId: user.id,
+            email: user.email,
+            fullName: user.fullName,
+          ));
+        } else {
+          emit(Authenticated(user: user));
+        }
+      },
+    );
+  }
+
+  /// Completar perfil OAuth después de seleccionar rol
+  Future<void> _onCompleteOAuthProfile(
+    CompleteOAuthProfileEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+
+    final result = await completeOAuthProfile(
+      CompleteOAuthProfileParams(
+        userId: event.userId,
+        userType: event.userType,
+        phone: event.phone,
+      ),
+    );
+
+    result.fold(
+      (failure) => emit(AuthError(message: failure.message)),
       (user) => emit(Authenticated(user: user)),
     );
   }
@@ -88,7 +125,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     result.fold(
       (failure) => emit(AuthError(message: failure.message)),
-      (user) => emit(Authenticated(user: user)),
+      (user) => emit(AuthRegistered(user: user)),
     );
   }
 
@@ -98,19 +135,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     print('🔓 AuthBloc - Iniciando cierre de sesión...');
-    emit(const AuthLoading());
 
     final result = await signOut();
 
     result.fold(
       (failure) {
         print('❌ AuthBloc - Error al cerrar sesión: ${failure.message}');
-        emit(AuthError(message: failure.message));
-        // Emitir Unauthenticated después del error
+        // Siempre emitir Unauthenticated incluso si hay error
         emit(const Unauthenticated());
       },
       (_) {
         print('✅ AuthBloc - Sesión cerrada correctamente');
+        // Emitir directamente sin AuthLoading
         emit(const Unauthenticated());
       },
     );

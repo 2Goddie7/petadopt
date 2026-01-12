@@ -14,9 +14,8 @@ class Pet extends Equatable {
   final PetSize size;
   final String description;
   final List<String> personalityTraits;
-  final String mainImageUrl;
-  final List<String> imagesUrls;
-  
+  final List<String> petImages; // Array de URLs de imágenes (máx 5)
+
   // Estado de salud
   final bool isVaccinated;
   final bool isDewormed;
@@ -24,18 +23,19 @@ class Pet extends Equatable {
   final bool hasMicrochip;
   final bool needsSpecialCare;
   final String? healthNotes;
-  
+
   // Estado de adopción
   final AdoptionStatus adoptionStatus;
-  
+
   // Metadata
   final int viewsCount;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // Información del refugio (opcional, puede venir del join)
   final String? shelterName;
   final String? shelterCity;
+  final String? shelterAddress;
   final double? shelterLatitude;
   final double? shelterLongitude;
 
@@ -51,8 +51,7 @@ class Pet extends Equatable {
     required this.size,
     required this.description,
     required this.personalityTraits,
-    required this.mainImageUrl,
-    required this.imagesUrls,
+    required this.petImages,
     this.isVaccinated = false,
     this.isDewormed = false,
     this.isSterilized = false,
@@ -65,6 +64,7 @@ class Pet extends Equatable {
     required this.updatedAt,
     this.shelterName,
     this.shelterCity,
+    this.shelterAddress,
     this.shelterLatitude,
     this.shelterLongitude,
   });
@@ -82,8 +82,7 @@ class Pet extends Equatable {
     PetSize? size,
     String? description,
     List<String>? personalityTraits,
-    String? mainImageUrl,
-    List<String>? imagesUrls,
+    List<String>? petImages,
     bool? isVaccinated,
     bool? isDewormed,
     bool? isSterilized,
@@ -95,6 +94,8 @@ class Pet extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? shelterName,
+    String? shelterCity,
+    String? shelterAddress,
     double? shelterLatitude,
     double? shelterLongitude,
   }) {
@@ -110,8 +111,7 @@ class Pet extends Equatable {
       size: size ?? this.size,
       description: description ?? this.description,
       personalityTraits: personalityTraits ?? this.personalityTraits,
-      mainImageUrl: mainImageUrl ?? this.mainImageUrl,
-      imagesUrls: imagesUrls ?? this.imagesUrls,
+      petImages: petImages ?? this.petImages,
       isVaccinated: isVaccinated ?? this.isVaccinated,
       isDewormed: isDewormed ?? this.isDewormed,
       isSterilized: isSterilized ?? this.isSterilized,
@@ -123,6 +123,8 @@ class Pet extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       shelterName: shelterName ?? this.shelterName,
+      shelterCity: shelterCity ?? this.shelterCity,
+      shelterAddress: shelterAddress ?? this.shelterAddress,
       shelterLatitude: shelterLatitude ?? this.shelterLatitude,
       shelterLongitude: shelterLongitude ?? this.shelterLongitude,
     );
@@ -151,11 +153,11 @@ class Pet extends Equatable {
   /// Verifica si tiene solicitudes pendientes
   bool get isPending => adoptionStatus == AdoptionStatus.pending;
 
-  /// Verifica si tiene imágenes adicionales
-  bool get hasAdditionalImages => imagesUrls.isNotEmpty;
+  /// Verifica si tiene más de una imagen
+  bool get hasAdditionalImages => petImages.length > 1;
 
   /// Obtiene el número total de imágenes
-  int get totalImages => imagesUrls.length + 1; // +1 por la imagen principal
+  int get totalImages => petImages.length;
 
   /// Verifica si tiene todas las vacunas
   bool get isFullyHealthy => isVaccinated && isDewormed && isSterilized;
@@ -166,19 +168,19 @@ class Pet extends Equatable {
   /// Calcula distancia al refugio si tiene coordenadas
   double? distanceToShelter(double userLat, double userLon) {
     if (shelterLatitude == null || shelterLongitude == null) return null;
-    
+
     const earthRadius = 6371.0;
     final dLat = _toRadians(userLat - shelterLatitude!);
     final dLon = _toRadians(userLon - shelterLongitude!);
-    
+
     final a = _sin(dLat / 2) * _sin(dLat / 2) +
         _cos(_toRadians(shelterLatitude!)) *
             _cos(_toRadians(userLat)) *
             _sin(dLon / 2) *
             _sin(dLon / 2);
-    
+
     final c = 2 * _atan2(_sqrt(a), _sqrt(1 - a));
-    
+
     return earthRadius * c;
   }
 
@@ -194,6 +196,7 @@ class Pet extends Equatable {
     }
     return guess;
   }
+
   double _atan2(double y, double x) {
     if (x > 0) return y / x;
     return 0;
@@ -212,8 +215,7 @@ class Pet extends Equatable {
         size,
         description,
         personalityTraits,
-        mainImageUrl,
-        imagesUrls,
+        petImages,
         isVaccinated,
         isDewormed,
         isSterilized,
@@ -225,6 +227,8 @@ class Pet extends Equatable {
         createdAt,
         updatedAt,
         shelterName,
+        shelterCity,
+        shelterAddress,
         shelterLatitude,
         shelterLongitude,
       ];

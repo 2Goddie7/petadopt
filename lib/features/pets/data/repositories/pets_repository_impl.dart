@@ -138,7 +138,7 @@ class PetsRepositoryImpl implements PetsRepository {
   Future<Either<Failure, List<String>>> uploadPetImages(
     String shelterId,
     String petId,
-    List<String> imagePaths,
+    List<dynamic> imagePaths,
   ) async {
     try {
       final imageUrls = await remoteDataSource.uploadPetImages(

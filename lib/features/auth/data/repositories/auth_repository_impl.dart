@@ -89,6 +89,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, User>> completeOAuthProfile({
+    required String userId,
+    required String userType,
+    String? phone,
+  }) async {
+    try {
+      final userModel = await remoteDataSource.completeOAuthProfile(
+        userId: userId,
+        userType: userType,
+        phone: phone,
+      );
+      return Right(userModel.toEntity());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, e.code));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message, e.code));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> signOut() async {
     try {
       await remoteDataSource.signOut();

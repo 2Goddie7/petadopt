@@ -49,7 +49,8 @@ class SignUpEvent extends AuthEvent {
   });
 
   @override
-  List<Object?> get props => [email, password, fullName, userType, phone, latitude, longitude];
+  List<Object?> get props =>
+      [email, password, fullName, userType, phone, latitude, longitude];
 }
 
 /// Evento: Cerrar sesión
@@ -70,4 +71,20 @@ class ResetPasswordEvent extends AuthEvent {
 /// Evento: Verificar autenticación
 class CheckAuthStatusEvent extends AuthEvent {
   const CheckAuthStatusEvent();
+}
+
+/// Evento: Completar perfil OAuth (después de seleccionar rol)
+class CompleteOAuthProfileEvent extends AuthEvent {
+  final String userId;
+  final String userType;
+  final String? phone;
+
+  const CompleteOAuthProfileEvent({
+    required this.userId,
+    required this.userType,
+    this.phone,
+  });
+
+  @override
+  List<Object?> get props => [userId, userType, phone];
 }

@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:get_it/get_it.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import '../../domain/entities/pet.dart';
 import 'package:petadopt/features/pets/presentation/bloc/pet_form_bloc.dart';
 import 'package:petadopt/features/pets/presentation/bloc/pet_form_event.dart';
@@ -11,7 +11,7 @@ import 'package:petadopt/features/pets/presentation/bloc/pet_form_state.dart';
 
 class EditPetPage extends StatefulWidget {
   final Pet pet;
-  
+
   const EditPetPage({super.key, required this.pet});
 
   @override
@@ -24,36 +24,40 @@ class _EditPetPageState extends State<EditPetPage> {
   late final TextEditingController _descriptionController;
   late final TextEditingController _breedController;
   late final TextEditingController _healthStatusController;
-  
+
   late PetSpecies _selectedSpecies;
   late PetSize _selectedSize;
   late PetGender _selectedGender;
   late AdoptionStatus _selectedStatus;
   late int _ageYears;
   late int _ageMonths;
-  
+
   final List<XFile> _newImages = [];
+  final Map<int, Uint8List> _newImageCache =
+      {}; // Cache para bytes de nuevas imágenes
   final List<String> _imagesToDelete = [];
   final ImagePicker _picker = ImagePicker();
-  
+
   late final PetFormBloc _petFormBloc;
 
   @override
   void initState() {
     super.initState();
-    
+
     _nameController = TextEditingController(text: widget.pet.name);
-    _descriptionController = TextEditingController(text: widget.pet.description);
+    _descriptionController =
+        TextEditingController(text: widget.pet.description);
     _breedController = TextEditingController(text: widget.pet.breed);
-    _healthStatusController = TextEditingController(text: widget.pet.healthNotes ?? '');
-    
+    _healthStatusController =
+        TextEditingController(text: widget.pet.healthNotes ?? '');
+
     _selectedSpecies = widget.pet.species;
     _selectedSize = widget.pet.size;
     _selectedGender = widget.pet.gender;
     _selectedStatus = widget.pet.adoptionStatus;
     _ageYears = widget.pet.ageYears;
     _ageMonths = widget.pet.ageMonths;
-    
+
     _petFormBloc = PetFormBloc(
       createPet: GetIt.instance(),
       updatePet: GetIt.instance(),
@@ -76,9 +80,26 @@ class _EditPetPageState extends State<EditPetPage> {
       final List<XFile> images = await _picker.pickMultiImage(
         imageQuality: 85,
       );
-      
+
       if (images.isNotEmpty) {
         setState(() {
+          // Total de imágenes: existentes - a eliminar + nuevas
+          final existingCount =
+              widget.pet.petImages.length - _imagesToDelete.length;
+          final totalWithNew =
+              existingCount + _newImages.length + images.length;
+
+          // Máximo 5 imágenes totales
+          if (totalWithNew > 5) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Máximo 5 imágenes. Ya tienes $existingCount existentes y ${_newImages.length} nuevas.'),
+              ),
+            );
+            return;
+          }
+
           _newImages.addAll(images);
         });
       }
@@ -106,20 +127,43 @@ class _EditPetPageState extends State<EditPetPage> {
   void _removeNewImage(int index) {
     setState(() {
       _newImages.removeAt(index);
+      _newImageCache.remove(index);
+      // Re-indexar el caché
+      final newCache = <int, Uint8List>{};
+      _newImageCache.forEach((key, value) {
+        if (key > index) {
+          newCache[key - 1] = value;
+        } else if (key < index) {
+          newCache[key] = value;
+        }
+      });
+      _newImageCache.clear();
+      _newImageCache.addAll(newCache);
     });
+  }
+
+  Future<Uint8List> _getCachedImageBytes(int index) async {
+    // Si ya tenemos los bytes en caché, devolverlos
+    if (_newImageCache.containsKey(index)) {
+      return _newImageCache[index]!;
+    }
+
+    // Si no, cargarlos y almacenarlos en caché
+    if (index < _newImages.length) {
+      final bytes = await _newImages[index].readAsBytes();
+      _newImageCache[index] = bytes;
+      return bytes;
+    }
+
+    throw Exception('Imagen no encontrada');
   }
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      final allCurrentUrls = [
-        if (widget.pet.mainImageUrl.isNotEmpty) widget.pet.mainImageUrl,
-        ...widget.pet.imagesUrls,
-      ];
-      
-      final remainingImages = allCurrentUrls
+      final remainingImages = widget.pet.petImages
           .where((url) => !_imagesToDelete.contains(url))
           .toList();
-      
+
       if (remainingImages.isEmpty && _newImages.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -133,8 +177,8 @@ class _EditPetPageState extends State<EditPetPage> {
       final updatedPet = widget.pet.copyWith(
         name: _nameController.text.trim(),
         species: _selectedSpecies,
-        breed: _breedController.text.trim().isEmpty 
-            ? 'Desconocida' 
+        breed: _breedController.text.trim().isEmpty
+            ? 'Desconocida'
             : _breedController.text.trim(),
         ageYears: _ageYears,
         ageMonths: _ageMonths,
@@ -184,14 +228,16 @@ class _EditPetPageState extends State<EditPetPage> {
             } else if (state is PetFormUploading) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('${state.message} ${(state.progress * 100).toInt()}%'),
+                  content: Text(
+                      '${state.message} ${(state.progress * 100).toInt()}%'),
                   duration: const Duration(seconds: 1),
                 ),
               );
             }
           },
           builder: (context, state) {
-            final isLoading = state is PetFormLoading || state is PetFormUploading;
+            final isLoading =
+                state is PetFormLoading || state is PetFormUploading;
 
             return Stack(
               children: [
@@ -223,7 +269,7 @@ class _EditPetPageState extends State<EditPetPage> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        
+
                         TextFormField(
                           controller: _nameController,
                           decoration: const InputDecoration(
@@ -471,14 +517,11 @@ class _EditPetPageState extends State<EditPetPage> {
   }
 
   Widget _buildImageEditor() {
-    final allCurrentUrls = [
-      if (widget.pet.mainImageUrl.isNotEmpty) widget.pet.mainImageUrl,
-      ...widget.pet.imagesUrls,
-    ];
-    
-    final existingImages = allCurrentUrls
-        .where((url) => !_imagesToDelete.contains(url))
-        .toList();
+    // Todas las imágenes actuales del pet
+    final allCurrentUrls = widget.pet.petImages;
+
+    final existingImages =
+        allCurrentUrls.where((url) => !_imagesToDelete.contains(url)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,7 +540,8 @@ class _EditPetPageState extends State<EditPetPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_photo_alternate, size: 64, color: Colors.grey),
+                    Icon(Icons.add_photo_alternate,
+                        size: 64, color: Colors.grey),
                     SizedBox(height: 8),
                     Text(
                       'Toca para agregar fotos',
@@ -547,6 +591,29 @@ class _EditPetPageState extends State<EditPetPage> {
                               ),
                             ),
                           ),
+                          // Badge: Número de imagen
+                          Positioned(
+                            top: 4,
+                            left: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '${index + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
                           Positioned(
                             top: 4,
                             right: 12,
@@ -576,7 +643,8 @@ class _EditPetPageState extends State<EditPetPage> {
               if (_imagesToDelete.isNotEmpty) ...[
                 const Text(
                   'Fotos a eliminar',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red),
+                  style:
+                      TextStyle(fontWeight: FontWeight.w600, color: Colors.red),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -634,7 +702,8 @@ class _EditPetPageState extends State<EditPetPage> {
               if (_newImages.isNotEmpty) ...[
                 const Text(
                   'Nuevas fotos',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green),
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: Colors.green),
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -645,16 +714,51 @@ class _EditPetPageState extends State<EditPetPage> {
                     itemBuilder: (context, index) {
                       return Stack(
                         children: [
-                          Container(
-                            width: 120,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              image: DecorationImage(
-                                image: FileImage(File(_newImages[index].path)),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                          FutureBuilder<Uint8List>(
+                            future: _getCachedImageBytes(index),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: MemoryImage(snapshot.data!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                );
+                              } else if (snapshot.hasError) {
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.grey[300],
+                                  ),
+                                  child: const Icon(Icons.error,
+                                      color: Colors.red),
+                                );
+                              } else {
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.grey[300],
+                                  ),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 30,
+                                      height: 30,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
                           ),
                           Positioned(
                             top: 4,

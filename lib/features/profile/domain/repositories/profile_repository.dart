@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'package:dartz/dartz.dart';
 import '../entities/user_profile.dart';
 import '../../../../core/error/failures.dart';
@@ -14,6 +14,6 @@ abstract class ProfileRepository {
   /// Sube la imagen de perfil del usuario
   Future<Either<Failure, String>> uploadProfileImage(
     String userId,
-    File imageFile,
+    XFile imageFile,
   );
 }

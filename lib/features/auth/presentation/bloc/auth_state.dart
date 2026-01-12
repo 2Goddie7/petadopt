@@ -19,6 +19,16 @@ class AuthLoading extends AuthState {
   const AuthLoading();
 }
 
+/// Estado: Registrado (esperando validación)
+class AuthRegistered extends AuthState {
+  final User user;
+
+  const AuthRegistered({required this.user});
+
+  @override
+  List<Object> get props => [user];
+}
+
 /// Estado: Autenticado
 class Authenticated extends AuthState {
   final User user;
@@ -32,6 +42,22 @@ class Authenticated extends AuthState {
 /// Estado: No autenticado
 class Unauthenticated extends AuthState {
   const Unauthenticated();
+}
+
+/// Estado: Necesita seleccionar rol (OAuth)
+class OAuthRoleSelectionNeeded extends AuthState {
+  final String userId;
+  final String email;
+  final String fullName;
+
+  const OAuthRoleSelectionNeeded({
+    required this.userId,
+    required this.email,
+    required this.fullName,
+  });
+
+  @override
+  List<Object> get props => [userId, email, fullName];
 }
 
 /// Estado: Error

@@ -23,6 +23,13 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     );
   }
 
+  /// Prompt especializado para el asistente de adopción
+  String _getSystemPrompt() => '''Eres experto en mascotas y adopción. 
+Responde en máximo 60 palabras. Usa MARKDOWN: **negrita**, listas, > para tips.
+Especialidades: nutrición, comportamiento, salud, vacunas, adopción.
+Tono: amigable y profesional.''';
+  
+
   @override
   Future<ChatMessageModel> sendMessage(String userId, String message) async {
     try {
@@ -32,18 +39,21 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
 
       // Obtener historial para contexto
       final history = await getChatHistory(userId);
-      
-      // Crear chat con contexto
+
+      // Crear chat con contexto + prompt personalizado
       final chat = geminiModel.startChat(
-        history: history.map((msg) => gemini.Content(
-          msg.role == ChatRole.user ? 'user' : 'model',
-          [gemini.TextPart(msg.message)],
-        )).toList(),
+        history: [
+          gemini.Content.text(_getSystemPrompt()), // Agregar prompt al inicio
+          ...history.map((msg) => gemini.Content(
+                msg.role == ChatRole.user ? 'user' : 'model',
+                [gemini.TextPart(msg.message)],
+              )).toList(),
+        ],
       );
 
       // Enviar mensaje a Gemini
       final response = await chat.sendMessage(gemini.Content.text(message));
-      
+
       if (response.text == null || response.text!.isEmpty) {
         throw const ServerException('No se recibió respuesta de la IA');
       }
@@ -83,9 +93,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<void> saveChatMessage(ChatMessageModel message) async {
     try {
-      await supabase
-          .from('chat_history')
-          .insert(message.toJsonForCreation());
+      await supabase.from('chat_history').insert(message.toJsonForCreation());
     } on PostgrestException catch (e) {
       // No lanzar error si falla guardar en BD
       print('Error saving chat message: ${e.message}');
@@ -95,10 +103,7 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
   @override
   Future<void> clearChatHistory(String userId) async {
     try {
-      await supabase
-          .from('chat_history')
-          .delete()
-          .eq('user_id', userId);
+      await supabase.from('chat_history').delete().eq('user_id', userId);
     } on PostgrestException catch (e) {
       throw ServerException(e.message, e.code);
     }
